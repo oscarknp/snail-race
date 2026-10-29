@@ -1,0 +1,17 @@
+services:
+  snail-race:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000" # put a reverse proxy with HTTPS in front (see deploy/Caddyfile)
+    env_file: .env
+    environment:
+      # These win over .env so the database and photos always land on the volume.
+      APP_ENV: production
+      DATA_DIR: /data
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - snail-data:/data
+
+volumes:
+  snail-data:

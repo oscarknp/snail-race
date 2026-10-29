@@ -1,0 +1,25 @@
+{
+  "tasks": {
+    "dev": "deno run -A --watch=server/,shared/ server/main.ts",
+    "dev:web": "cd web && deno task dev",
+    "build": "cd web && deno install && deno task build",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-sys server/main.ts",
+    "test": "deno test -A server/tests/",
+    "check": "deno check server/main.ts",
+    "strava:webhook": "deno run -A server/scripts/strava-webhook.ts",
+    "seed": "deno run -A server/scripts/seed.ts"
+  },
+  "imports": {
+    "hono": "npm:hono@4.13.14",
+    "hono/": "npm:/hono@4.13.14/",
+    "zod": "npm:zod@3.25.76"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "exclude": [
+    "web/",
+    "data/",
+    "uploads/"
+  ]
+}

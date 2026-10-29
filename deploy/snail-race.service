@@ -1,0 +1,23 @@
+# systemd unit for running Snail Race without Docker.
+# Install: sudo cp deploy/snail-race.service /etc/systemd/system/ && sudo systemctl enable --now snail-race
+# Adjust WorkingDirectory, User and the deno path (`which deno`) to match your server.
+[Unit]
+Description=Snail Race
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=snailrace
+WorkingDirectory=/opt/snail-race
+# Settings are read from /opt/snail-race/.env
+Environment=APP_ENV=production
+ExecStart=/usr/local/bin/deno task start
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

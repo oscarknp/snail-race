@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!--
+  Unraid container template for Snail Race, using the image GitHub Actions publishes.
+  1. Replace YOUR-GITHUB-NAME below (twice) with your GitHub username, in lowercase.
+  2. Copy this file into the flash share: config/plugins/dockerMan/templates-user/
+  3. Docker > Add Container > Template: snail-race
+-->
+<Container version="2">
+  <Name>snail-race</Name>
+  <Repository>ghcr.io/YOUR-GITHUB-NAME/snail-race:latest</Repository>
+  <Registry>https://github.com/YOUR-GITHUB-NAME/snail-race/pkgs/container/snail-race</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>Snail Race: a friendly fitness race. Log cycling, running, rowing or swimming (by hand or from Strava) and race to 100% of your sport's goal.</Overview>
+  <Category>Other:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL/>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <Config Name="Web UI port" Target="8000" Default="8000" Mode="tcp" Description="Port the app listens on." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="App data" Target="/data" Default="/mnt/user/appdata/snail-race" Mode="rw" Description="Database, profile photos and keys. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/snail-race</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User the app runs as. 99 = Unraid's 'nobody'." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group the app runs as. 100 = Unraid's 'users'." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="APP_URL" Target="APP_URL" Default="" Mode="" Description="The exact address you open the app at, e.g. https://snails.example.com (behind a reverse proxy) or http://192.168.1.10:8000. Logins only work at this address." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="TOKEN_ENCRYPTION_KEY" Target="TOKEN_ENCRYPTION_KEY" Default="" Mode="" Description="Required: a random secret of 32+ characters (e.g. from a password manager, or `openssl rand -base64 32`). Keep it: changing it disconnects everyone's Strava." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="TRUST_PROXY" Target="TRUST_PROXY" Default="false" Mode="" Description="true when a reverse proxy (Nginx Proxy Manager, SWAG, nginx) sits in front of the app." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
+  <Config Name="STRAVA_CLIENT_ID" Target="STRAVA_CLIENT_ID" Default="" Mode="" Description="From strava.com/settings/api. Leave empty for manual tracking only." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="STRAVA_CLIENT_SECRET" Target="STRAVA_CLIENT_SECRET" Default="" Mode="" Description="From strava.com/settings/api." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="STRAVA_WEBHOOK_VERIFY_TOKEN" Target="STRAVA_WEBHOOK_VERIFY_TOKEN" Default="" Mode="" Description="Optional, any random string. Needed for instant Strava updates (requires a public https address)." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SMTP_HOST" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Mail server for password-reset emails. Without it, reset links are printed in the container log." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP_PORT" Target="SMTP_PORT" Default="587" Mode="" Description="Mail server port." Type="Variable" Display="advanced" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP_USER" Target="SMTP_USER" Default="" Mode="" Description="Mail server username." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP_PASS" Target="SMTP_PASS" Default="" Mode="" Description="Mail server password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="MAIL_FROM" Target="MAIL_FROM" Default="Snail Race &lt;no-reply@example.com&gt;" Mode="" Description="Sender shown on emails." Type="Variable" Display="advanced" Required="false" Mask="false">Snail Race &lt;no-reply@example.com&gt;</Config>
+  <Config Name="DEFAULT_RACE_NAME" Target="DEFAULT_RACE_NAME" Default="The Great Garden Grand Prix" Mode="" Description="Name of the race everyone joins." Type="Variable" Display="advanced" Required="false" Mask="false">The Great Garden Grand Prix</Config>
+</Container>

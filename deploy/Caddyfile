@@ -1,0 +1,7 @@
+# Caddy gets and renews the HTTPS certificate automatically.
+# Replace the domain, point its DNS at your server, then: sudo caddy run --config deploy/Caddyfile
+# (or copy this block into /etc/caddy/Caddyfile and `sudo systemctl reload caddy`).
+snails.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:8000
+}
