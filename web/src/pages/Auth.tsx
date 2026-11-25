@@ -1,10 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { SPORTS } from "../../../shared/sports.ts";
+import { GOAL_POINTS, goalPoints, MAX_SPORTS, SPORTS } from "../../../shared/sports.ts";
 import { api, ApiError, type Me } from "../lib/api.ts";
 import { useAuth } from "../lib/auth.tsx";
 import { Field } from "../components/ui.tsx";
-import { SnailPortrait } from "../components/Snail.tsx";
+import { RacerPortrait } from "../components/Racer.tsx";
 
 function useSubmit() {
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,7 +33,7 @@ function AuthCard({ title, subtitle, children }: { title: string; subtitle: stri
     <main className="auth-wrap">
       <div className="card auth-card">
         <div style={{ textAlign: "center" }}>
-          <SnailPortrait user={{ id: 3, name: "Snail", photoUrl: null }} size={96} title="" />
+          <RacerPortrait user={{ id: 3, name: "Pilot", photoUrl: null }} size={96} title="" />
           <h1>{title}</h1>
           <p className="muted">{subtitle}</p>
         </div>
@@ -60,7 +60,7 @@ export function Login() {
   };
 
   return (
-    <AuthCard title="Welcome back" subtitle="Your snail missed you. Log in to keep racing.">
+    <AuthCard title="Welcome back" subtitle="Welcome aboard. Log in to keep flying.">
       <form className="form" onSubmit={submit} noValidate>
         {formError && <div className="form-error" role="alert">{formError}</div>}
         <Field label="Email" id="login-email" error={errors.email}>
@@ -85,13 +85,13 @@ export function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [sport, setSport] = useState("");
+  const [sports, setSports] = useState<string[]>([]);
   const { errors, setErrors, formError, busy, run } = useSubmit();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!sport) {
-      setErrors({ sport: "Pick the sport you'll race in" });
+    if (!sports.length) {
+      setErrors({ sports: "Pick at least one sport" });
       return;
     }
     if (password.length < 8) {
@@ -99,16 +99,16 @@ export function Register() {
       return;
     }
     run(async () => {
-      setMe(await api<Me>("/auth/register", { body: { name, email, password, sport } }));
+      setMe(await api<Me>("/auth/register", { body: { name, email, password, sports } }));
       navigate("/profile?welcome=1", { replace: true });
     });
   };
 
   return (
-    <AuthCard title="Join the race" subtitle="Create your racer. You'll be on the starting line in seconds.">
+    <AuthCard title="Join the race" subtitle="Create your pilot. You'll be on the runway in seconds.">
       <form className="form" onSubmit={submit} noValidate>
         {formError && <div className="form-error" role="alert">{formError}</div>}
-        <Field label="Your name" id="reg-name" error={errors.name} hint="Shown next to your snail">
+        <Field label="Your name" id="reg-name" error={errors.name} hint="Shown next to your plane">
           <input id="reg-name" className="input" autoComplete="name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} required />
         </Field>
         <Field label="Email" id="reg-email" error={errors.email}>
@@ -117,8 +117,8 @@ export function Register() {
         <Field label="Password" id="reg-password" error={errors.password} hint="At least 8 characters">
           <input id="reg-password" className="input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
-        <SportPicker value={sport} onChange={setSport} error={errors.sport} />
-        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? "Hatching your snail…" : "Create my snail"}</button>
+        <SportPicker value={sports} onChange={setSports} error={sportsError(errors)} />
+        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? "Preparing your plane…" : "Get my wings"}</button>
         <p className="small muted" style={{ textAlign: "center", margin: 0 }}>
           Already racing? <Link to="/login">Log in</Link>
         </p>
@@ -139,7 +139,7 @@ export function ForgotPassword() {
     });
   };
   return (
-    <AuthCard title="Forgot your password?" subtitle="It happens to the best of snails.">
+    <AuthCard title="Forgot your password?" subtitle="It happens to the best of pilots.">
       {sent
         ? (
           <div className="notice ok" role="status">
@@ -187,7 +187,7 @@ export function ResetPassword() {
     );
   }
   return (
-    <AuthCard title="Choose a new password" subtitle="Make it a good one. Snails never forget.">
+    <AuthCard title="Choose a new password" subtitle="Make it a good one. Pilots never forget a checklist.">
       <form className="form" onSubmit={submit} noValidate>
         {formError && <div className="form-error" role="alert">{formError} <Link to="/forgot-password">Request a new link</Link></div>}
         <Field label="New password" id="reset-password" error={errors.password} hint="At least 8 characters">
@@ -202,28 +202,46 @@ export function ResetPassword() {
   );
 }
 
-/** The four race sports as big buttons, each showing its fixed distance goal. */
-export function SportPicker({ value, onChange, error }: { value: string; onChange: (sport: string) => void; error?: string }) {
+/** Server errors for the sports list may be keyed "sports" or "sports.0". */
+export function sportsError(errors: Record<string, string>): string | undefined {
+  return Object.entries(errors).find(([k]) => k === "sports" || k.startsWith("sports."))?.[1];
+}
+
+/** Pick 1-3 race sports. Each shows its points per km; the goal depends on how many are picked. */
+export function SportPicker({ value, onChange, error }: { value: string[]; onChange: (sports: string[]) => void; error?: string }) {
+  const goal = goalPoints(value);
+  const full = value.length >= MAX_SPORTS;
   return (
     <div className="field">
-      <span className="label" id="sport-picker-label">Your race sport</span>
-      <div className="sport-picker" role="radiogroup" aria-labelledby="sport-picker-label">
-        {SPORTS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="radio"
-            aria-checked={value === s.id}
-            className="option-card sport-option"
-            onClick={() => onChange(s.id)}
-          >
-            <span className="sport-emoji" aria-hidden="true">{s.emoji}</span>
-            <strong>{s.label}</strong>
-            <span>{s.targetKm} km goal</span>
-          </button>
-        ))}
+      <span className="label" id="sport-picker-label">Your race sports (pick 1 to {MAX_SPORTS})</span>
+      <div className="sport-picker" role="group" aria-labelledby="sport-picker-label">
+        {SPORTS.map((s) => {
+          const on = value.includes(s.id);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              aria-pressed={on}
+              disabled={!on && full}
+              className="option-card sport-option"
+              onClick={() => onChange(on ? value.filter((x) => x !== s.id) : [...value, s.id])}
+            >
+              <span className="sport-emoji" aria-hidden="true">{s.emoji}</span>
+              <strong>{s.label}</strong>
+              <span>{s.pointsPerKm} {s.pointsPerKm === 1 ? "point" : "points"} per km</span>
+            </button>
+          );
+        })}
       </div>
-      {error ? <span className="error" role="alert">{error}</span> : <span className="hint">The goal is fixed per sport. Everyone races to 100% of theirs.</span>}
+      {error
+        ? <span className="error" role="alert">{error}</span>
+        : (
+          <span className="hint">
+            {goal
+              ? <>Your goal: <strong>{goal.toLocaleString()} points</strong>{full ? ` (that's the maximum of ${MAX_SPORTS} sports)` : ""}</>
+              : `Goal: ${GOAL_POINTS[1]} points with 1 sport, ${GOAL_POINTS[2]} with 2, ${GOAL_POINTS[3]} with 3.`}
+          </span>
+        )}
     </div>
   );
 }

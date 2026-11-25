@@ -1,23 +1,23 @@
 import { createContext, type FormEvent, type ReactNode, useCallback, useContext, useState } from "react";
-import { isSport, SPORTS, sportLabel } from "../../../shared/sports.ts";
-import { fromMeters, type Unit } from "../../../shared/units.ts";
+import { formatPoints, isSport, pointsFor, pointsPerKm, SPORTS, sportLabel } from "../../../shared/sports.ts";
+import { fromMeters, toMeters, type Unit } from "../../../shared/units.ts";
 import { type Activity, api, ApiError, notifyDataChanged } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
 import { dist, todayIso } from "../lib/format.ts";
 import { Field, Modal, useToast } from "./ui.tsx";
 
 const CHEERS = [
-  "Slime on! 🐌",
-  "Your snail is positively zooming.",
-  "Shell yeah! 🐚",
-  "That's some serious slime mileage.",
-  "The lettuce at the finish line trembles. 🥬",
+  "Cleared for takeoff! ✈️",
+  "Smooth climb, captain.",
+  "Full throttle! 🛫",
+  "That's some serious air mileage.",
+  "The control tower is impressed. 🗼",
 ];
 
 function ActivityForm({ initial, onDone }: { initial?: Activity; onDone: () => void }) {
   const me = useMe();
   const toast = useToast();
-  const [sport, setSport] = useState<string>(initial && isSport(initial.sport) ? initial.sport : me.sport ?? "cycling");
+  const [sport, setSport] = useState<string>(initial && isSport(initial.sport) ? initial.sport : me.sports[0] ?? "cycling");
   const [date, setDate] = useState(initial?.date ?? todayIso());
   const [unit, setUnit] = useState<Unit>(me.unit);
   const [distance, setDistance] = useState(initial ? String(Math.round(fromMeters(initial.distanceM, me.unit) * 100) / 100) : "");
@@ -34,7 +34,7 @@ function ActivityForm({ initial, onDone }: { initial?: Activity; onDone: () => v
     if (!distance.trim() || !Number.isFinite(value)) local.distance = "Enter a distance";
     else if (value <= 0) local.distance = "Distance must be greater than zero";
     if (!date) local.date = "Pick a date";
-    else if (date > todayIso()) local.date = "That date is in the future — snails can't time travel";
+    else if (date > todayIso()) local.date = "That date is in the future — even jets can't time travel";
     setErrors(local);
     setFormError(null);
     if (Object.keys(local).length) return;
@@ -46,7 +46,9 @@ function ActivityForm({ initial, onDone }: { initial?: Activity; onDone: () => v
         : await api<Activity>("/activities", { body });
       notifyDataChanged();
       if (initial) toast("Activity updated");
-      else if (saved.counts) toast(`+${dist(saved.distanceM, unit)} — ${CHEERS[Math.floor(Math.random() * CHEERS.length)]}`);
+      else if (saved.counts) {
+        toast(`+${formatPoints(saved.points)} (${dist(saved.distanceM, unit)}) — ${CHEERS[Math.floor(Math.random() * CHEERS.length)]}`);
+      }
       else toast(saved.excludedLabel ?? "Saved, but it doesn't count toward your races");
       onDone();
     } catch (err) {
@@ -66,7 +68,11 @@ function ActivityForm({ initial, onDone }: { initial?: Activity; onDone: () => v
         label="Sport"
         id="act-sport"
         error={errors.sport}
-        hint={me.sport && sport !== me.sport ? `Heads up: only ${sportLabel(me.sport).toLowerCase()} counts toward your race.` : undefined}
+        hint={!me.sports.includes(sport as never)
+          ? `Heads up: ${sportLabel(sport).toLowerCase()} isn't one of your race sports, so it won't earn points.`
+          : Number(distance) > 0
+          ? `= ${formatPoints(pointsFor(sport, toMeters(Number(distance), unit)))} (${pointsPerKm(sport)} per km)`
+          : `${pointsPerKm(sport)} ${pointsPerKm(sport) === 1 ? "point" : "points"} per km`}
       >
         <select id="act-sport" className="input" value={sport} onChange={(e) => setSport(e.target.value)}>
           {SPORTS.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.label}</option>)}
@@ -102,10 +108,10 @@ function ActivityForm({ initial, onDone }: { initial?: Activity; onDone: () => v
         <input id="act-name" className="input" maxLength={80} placeholder="Morning plod" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label="Notes (optional)" id="act-notes" error={errors.notes} hint={`${notes.length}/500`}>
-        <textarea id="act-notes" className="input" maxLength={500} placeholder="Felt speedy. Overtook a slug." value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea id="act-notes" className="input" maxLength={500} placeholder="Strong tailwind. Overtook a glider." value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-        {busy ? "Saving…" : initial ? "Save changes" : "Log it & move my snail"}
+        {busy ? "Saving…" : initial ? "Save changes" : "Log it & fly forward"}
       </button>
     </form>
   );

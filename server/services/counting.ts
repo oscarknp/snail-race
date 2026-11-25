@@ -1,12 +1,13 @@
-// Decides which activities count toward a user's distance. This is the single place the
+// Decides which activities count toward a user's points. This is the single place the
 // rules live; totals, race standings and the activity list all go through it.
+import { parseSports, pointsFor } from "../../shared/sports.ts";
 import type { ActivityRow, TrackingMethod, UserRow } from "../lib/types.ts";
 
 export type Exclusion = "no_sport" | "other_sport" | "tracking_method" | "no_share_consent" | "duplicate" | "outside_races";
 
 export interface CountingPrefs {
-  /** The user's race sport; only activities of this sport count. */
-  sport: string | null;
+  /** The user's race sports; only activities in these sports count. */
+  sports: Set<string>;
   trackingMethod: TrackingMethod;
   shareConsent: boolean;
 }
@@ -15,11 +16,13 @@ export interface Evaluated extends ActivityRow {
   counts: boolean;
   excludedReason: Exclusion | null;
   duplicateOf: number | null;
+  /** Points this activity is worth at its sport's rate (whether or not it counts). */
+  points: number;
 }
 
 export function prefsFromUser(user: UserRow): CountingPrefs {
   return {
-    sport: user.sport,
+    sports: new Set(parseSports(user.sports)),
     trackingMethod: user.tracking_method,
     shareConsent: Boolean(user.strava_share_consent),
   };
@@ -39,15 +42,15 @@ export function isLikelyDuplicate(manual: ActivityRow, imported: ActivityRow): b
 export function evaluate(activities: ActivityRow[], prefs: CountingPrefs): Evaluated[] {
   const out: Evaluated[] = activities.map((a) => {
     let reason: Exclusion | null = null;
-    if (!prefs.sport) reason = "no_sport";
-    else if (a.sport !== prefs.sport) reason = "other_sport";
+    if (!prefs.sports.size) reason = "no_sport";
+    else if (!prefs.sports.has(a.sport)) reason = "other_sport";
     else if (a.source === "manual") {
       if (prefs.trackingMethod === "strava") reason = "tracking_method";
     } else {
       if (prefs.trackingMethod === "manual") reason = "tracking_method";
       else if (!prefs.shareConsent) reason = "no_share_consent";
     }
-    return { ...a, counts: reason === null, excludedReason: reason, duplicateOf: null };
+    return { ...a, counts: reason === null, excludedReason: reason, duplicateOf: null, points: pointsFor(a.sport, a.distance_m) };
   });
 
   if (prefs.trackingMethod === "both") {
@@ -94,9 +97,13 @@ export function countedTotal(evaluated: Evaluated[]): number {
   return evaluated.reduce((sum, a) => sum + (a.counts ? a.distance_m : 0), 0);
 }
 
+export function countedPoints(evaluated: Evaluated[]): number {
+  return evaluated.reduce((sum, a) => sum + (a.counts ? a.points : 0), 0);
+}
+
 export const EXCLUSION_LABELS: Record<Exclusion, string> = {
-  no_sport: "Not counted: pick your race sport in your profile",
-  other_sport: "Not counted: only your race sport counts",
+  no_sport: "Not counted: pick your race sports in your profile",
+  other_sport: "Not counted: not one of your race sports",
   tracking_method: "Not counted: your tracking method excludes this source",
   no_share_consent: "Not counted: Strava sharing consent is off",
   duplicate: "Not counted: looks like the same workout as a Strava activity",

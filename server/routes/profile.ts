@@ -1,12 +1,19 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { SPORT_IDS } from "../../shared/sports.ts";
+import { MAX_SPORTS, SPORT_IDS } from "../../shared/sports.ts";
 import { config } from "../config.ts";
 import { all, one, run } from "../db.ts";
 import { randomToken } from "../lib/crypto.ts";
 import { type AppEnv, currentUser, HttpError, idParam, jsonBody, parse, requireAuth } from "../lib/http.ts";
 import { publicUser, type RaceRow, type UserRow } from "../lib/types.ts";
 import { canViewRace, raceStandings, raceSummary } from "../services/races.ts";
+
+/** 1-3 different race sports. The points goal follows from how many are chosen. */
+export const sportsInput = z
+  .array(z.enum(SPORT_IDS, { errorMap: () => ({ message: "Choose from cycling, running, rowing and swimming" }) }))
+  .min(1, "Pick at least one sport")
+  .max(MAX_SPORTS, `You can take part in up to ${MAX_SPORTS} sports`)
+  .refine((list) => new Set(list).size === list.length, "Pick each sport only once");
 
 export function meResponse(u: UserRow) {
   return {
@@ -51,8 +58,8 @@ export const profile = new Hono<AppEnv>()
     const body = parse(
       z.object({
         name: z.string().trim().min(1, "Enter a display name").max(40, "Display name must be 40 characters or fewer").optional(),
-        // The distance goal is fixed by the sport, so there's no goal field to set.
-        sport: z.enum(SPORT_IDS, { errorMap: () => ({ message: "Choose cycling, running, rowing or swimming" }) }).optional(),
+        // The points goal is fixed by the number of sports, so there's no goal field to set.
+        sports: sportsInput.optional(),
         unit: z.enum(["km", "mi"]).optional(),
         trackingMethod: z.enum(["manual", "strava", "both"]).optional(),
       }),
@@ -62,10 +69,10 @@ export const profile = new Hono<AppEnv>()
       throw new HttpError(400, "Connect Strava before switching to Strava-only tracking", { trackingMethod: "Connect Strava first" });
     }
     run(
-      `UPDATE users SET name = ?, sport = ?, unit = ?, tracking_method = ?,
+      `UPDATE users SET name = ?, sports = ?, unit = ?, tracking_method = ?,
          updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
       body.name ?? user.name,
-      body.sport ?? user.sport,
+      body.sports ? body.sports.join(",") : user.sports,
       body.unit ?? user.unit,
       body.trackingMethod ?? user.tracking_method,
       user.id,
@@ -97,13 +104,13 @@ export const profile = new Hono<AppEnv>()
     return c.json(meResponse(one<UserRow>("SELECT * FROM users WHERE id = ?", user.id)!));
   })
   .get("/users", (c) => {
-    const users = all<UserRow>("SELECT id, name, sport, photo_file, unit FROM users ORDER BY name COLLATE NOCASE");
+    const users = all<UserRow>("SELECT id, name, sports, photo_file, unit FROM users ORDER BY name COLLATE NOCASE");
     return c.json(users.map(publicUser));
   })
   .get("/users/:id", (c) => {
     const viewer = currentUser(c);
     const u = one<UserRow>("SELECT * FROM users WHERE id = ?", idParam(c));
-    if (!u) throw new HttpError(404, "That snail has wandered off");
+    if (!u) throw new HttpError(404, "That pilot has flown off");
     // Only aggregate race results are shared with other people, never individual activities.
     const races = all<RaceRow>(
       `SELECT r.* FROM races r JOIN race_participants p ON p.race_id = r.id

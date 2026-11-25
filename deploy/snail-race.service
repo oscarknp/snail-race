@@ -1,8 +1,8 @@
-# systemd unit for running Snail Race without Docker.
+# systemd unit for running Sky Race without Docker.
 # Install: sudo cp deploy/snail-race.service /etc/systemd/system/ && sudo systemctl enable --now snail-race
 # Adjust WorkingDirectory, User and the deno path (`which deno`) to match your server.
 [Unit]
-Description=Snail Race
+Description=Sky Race
 After=network-online.target
 Wants=network-online.target
 

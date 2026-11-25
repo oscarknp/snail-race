@@ -1,4 +1,4 @@
-import { sportTargetM } from "../../shared/sports.ts";
+import { goalPoints, parseSports } from "../../shared/sports.ts";
 import { config } from "../config.ts";
 import { all, one, run } from "../db.ts";
 import type { ActivityRow, RaceRow, UserRow } from "../lib/types.ts";
@@ -21,7 +21,7 @@ export function ensureDefaultRace(): RaceRow {
   run(
     `INSERT INTO races (name, description, start_date, is_default) VALUES (?, ?, ?, 1)`,
     config.defaultRace.name,
-    "The everyone-welcome race around the vegetable patch. Every snail starts here.",
+    "The everyone-welcome air race. Every pilot takes off here.",
     today().slice(0, 8) + "01", // from the first of this month
   );
   return one<RaceRow>("SELECT * FROM races WHERE is_default = 1")!;
@@ -37,14 +37,23 @@ export function joinDefaultRace(userId: number) {
   );
 }
 
+export interface SportTotal {
+  sport: string;
+  distanceM: number;
+  points: number;
+}
+
 export interface Standing {
   rank: number;
   user: ReturnType<typeof publicUser>;
-  distanceM: number;
-  goalM: number | null;
-  /** Share of the racer's own sport goal, 0..1. This is what positions them on the track. */
+  points: number;
+  goalPoints: number | null;
+  /** Share of the racer's own points goal, 0..1. This is what positions them on the track. */
   progress: number;
-  remainingM: number | null;
+  remainingPoints: number | null;
+  /** Counted distance across all of the racer's sports. */
+  distanceM: number;
+  bySport: SportTotal[];
   finishedOn: string | null;
   activityCount: number;
   lastActivityOn: string | null;
@@ -52,7 +61,8 @@ export interface Standing {
 
 /**
  * Race standings computed fresh from saved activities, so edits are always reflected.
- * Everyone races to 100% of their own sport's fixed goal, which makes sports comparable.
+ * Every km earns points at its sport's rate; racers chase a goal that depends on how
+ * many sports they take part in (900 / 1050 / 1200), so progress is a share of that.
  */
 export function raceStandings(race: RaceRow): Standing[] {
   const users = all<UserRow>(
@@ -72,21 +82,30 @@ export function raceStandings(race: RaceRow): Standing[] {
   const acts = all<ActivityRow>(sql, ...params);
 
   const rows = users.map((u) => {
-    const goal = sportTargetM(u.sport);
+    const sports = parseSports(u.sports);
+    const goal = goalPoints(sports);
     const counted = evaluate(acts.filter((a) => a.user_id === u.id), prefsFromUser(u)).filter((a) => a.counts);
-    let sum = 0;
+    let points = 0;
+    let distanceM = 0;
     let finishedOn: string | null = null;
+    const bySport = new Map<string, SportTotal>(sports.map((sp) => [sp, { sport: sp, distanceM: 0, points: 0 }]));
     for (const a of counted) {
-      sum += a.distance_m;
-      if (goal && !finishedOn && sum >= goal) finishedOn = a.date;
+      points += a.points;
+      distanceM += a.distance_m;
+      const t = bySport.get(a.sport)!;
+      t.distanceM += a.distance_m;
+      t.points += a.points;
+      if (goal && !finishedOn && points >= goal) finishedOn = a.date;
     }
     return {
       rank: 0,
       user: publicUser(u),
-      distanceM: sum,
-      goalM: goal,
-      progress: goal ? Math.min(1, sum / goal) : 0,
-      remainingM: goal ? Math.max(0, goal - sum) : null,
+      points,
+      goalPoints: goal,
+      progress: goal ? Math.min(1, points / goal) : 0,
+      remainingPoints: goal ? Math.max(0, goal - points) : null,
+      distanceM,
+      bySport: [...bySport.values()],
       finishedOn,
       activityCount: counted.length,
       lastActivityOn: counted.at(-1)?.date ?? null,
@@ -102,7 +121,7 @@ export function raceStandings(race: RaceRow): Standing[] {
   });
   rows.forEach((r, i) => {
     const prev = rows[i - 1];
-    r.rank = prev && prev.progress === r.progress && prev.finishedOn === r.finishedOn ? prev.rank : i + 1;
+    r.rank = prev && Math.abs(prev.progress - r.progress) < 1e-9 && prev.finishedOn === r.finishedOn ? prev.rank : i + 1;
   });
   return rows;
 }

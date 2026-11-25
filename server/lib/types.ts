@@ -1,4 +1,4 @@
-import { sportTargetM } from "../../shared/sports.ts";
+import { goalPoints, parseSports } from "../../shared/sports.ts";
 import type { Unit } from "../../shared/units.ts";
 
 export type TrackingMethod = "manual" | "strava" | "both";
@@ -8,7 +8,8 @@ export interface UserRow {
   email: string;
   password_hash: string;
   name: string;
-  sport: string | null;
+  /** Comma-separated race sports, in the order chosen (max 3). */
+  sports: string;
   unit: Unit;
   photo_file: string | null;
   tracking_method: TrackingMethod;
@@ -65,13 +66,14 @@ export interface ConnectionRow {
 }
 
 /** The subset of a user that is safe to show to other participants. */
-export function publicUser(u: Pick<UserRow, "id" | "name" | "sport" | "photo_file" | "unit">) {
+export function publicUser(u: Pick<UserRow, "id" | "name" | "sports" | "photo_file" | "unit">) {
+  const sports = parseSports(u.sports);
   return {
     id: u.id,
     name: u.name,
-    sport: u.sport,
-    // The goal is fixed by the sport, so it's derived rather than stored.
-    goalM: sportTargetM(u.sport),
+    sports,
+    // The goal depends only on how many sports someone takes part in, so it's derived.
+    goalPoints: goalPoints(sports),
     unit: u.unit,
     photoUrl: u.photo_file ? `/api/photos/${u.photo_file}` : null,
   };

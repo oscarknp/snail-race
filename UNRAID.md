@@ -1,4 +1,4 @@
-# Snail Race on Unraid (GitHub + Unraid GUI)
+# Sky Race on Unraid (GitHub + Unraid GUI)
 
 How it fits together: you put the code on GitHub. GitHub builds the Docker image for you and publishes it as
 `ghcr.io/<your-github-name>/snail-race`. Unraid then installs it from the Docker tab like any other container,
@@ -60,11 +60,11 @@ instead (repository **Settings** → **Danger Zone** → **Change visibility**).
 | Field | What to enter |
 |---|---|
 | **Repository** | `ghcr.io/<your-github-name>/snail-race:latest`. Your GitHub username **in lowercase**. |
-| **APP_URL** | The exact address you'll open the app at: `https://snails.yourdomain.com` through your reverse proxy (recommended), or `http://<unraid-ip>:8000`. Logins only work at this exact address. |
+| **APP_URL** | The exact address you'll open the app at: `https://race.yourdomain.com` through your reverse proxy (recommended), or `http://<unraid-ip>:8088`. Logins only work at this exact address. |
 | **TOKEN_ENCRYPTION_KEY** | A random secret of 32+ characters. Let your password manager generate one and **save it there**: changing it later disconnects everyone's Strava. |
 | **TRUST_PROXY** | `true` if a reverse proxy sits in front, otherwise `false`. |
 | **STRAVA_CLIENT_ID / SECRET** | From https://www.strava.com/settings/api. Leave empty for manual tracking only. |
-| Web UI port | Change it if 8000 is already used on your server, and use the same port in APP_URL. |
+| Web UI port | `8088` (pre-filled). This is the port on your Unraid server; the app uses 8000 inside the container, so leave that side alone. |
 
    Under **Advanced View** (toggle at the top right): PUID `99` / PGID `100` are Unraid's defaults, so leave
    them. Mail settings for password-reset emails are optional.
@@ -72,25 +72,25 @@ instead (repository **Settings** → **Danger Zone** → **Change visibility**).
 4. After about 20 seconds the container shows as **healthy**. Click its icon → **WebUI**.
 
 **No template?** In Add Container, fill in Name `snail-race`, Repository as above, then **Add another Path, Port,
-Variable** for: Port `8000` → `8000`; Path container `/data` → host `/mnt/user/appdata/snail-race`; and the
+Variable** for: Port container `8000` → host `8088`; Path container `/data` → host `/mnt/user/appdata/snail-race`; and the
 variables `APP_URL`, `TOKEN_ENCRYPTION_KEY`, `TRUST_PROXY`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`,
 `PUID`=`99`, `PGID`=`100`.
 
 ### 7. Reverse proxy and HTTPS (Nginx Proxy Manager)
 
 Add a **Proxy Host**:
-- **Domain:** `snails.yourdomain.com`. **Forward:** `http`, your Unraid IP, port `8000`.
+- **Domain:** `race.yourdomain.com`. **Forward:** `http`, your Unraid IP, port `8088`.
 - **SSL** tab: request a Let's Encrypt certificate, and turn on *Force SSL*.
 - **Advanced** tab, custom config: `client_max_body_size 6m;` (needed for profile photo uploads).
 
-Then edit the container: set APP_URL to `https://snails.yourdomain.com` and TRUST_PROXY to `true` → **Apply**.
+Then edit the container: set APP_URL to `https://race.yourdomain.com` and TRUST_PROXY to `true` → **Apply**.
 
 Using SWAG or plain nginx instead? See `deploy/nginx.conf` for the same settings.
 
 ### 8. Point Strava at it
 
 In https://www.strava.com/settings/api, set **Authorization Callback Domain** to the host in your APP_URL
-(`snails.yourdomain.com`, without `https://` or the port). Strava expects a domain name. I'm not sure it accepts
+(`race.yourdomain.com`, without `https://` or the port). Strava expects a domain name. I'm not sure it accepts
 a bare LAN IP, so use the reverse-proxy domain if it refuses one.
 
 Optional, for instant updates (needs the public https address and `STRAVA_WEBHOOK_VERIFY_TOKEN` set to any random

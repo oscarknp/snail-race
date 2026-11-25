@@ -34,7 +34,7 @@ export function Races() {
       <div className="page-head">
         <div>
           <h1>Races &amp; challenges</h1>
-          <p>Everyone races in the Grand Prix. Start your own race to challenge friends on your own terms.</p>
+          <p>Everyone flies in the Sky Rally. Start your own race to challenge friends on your own terms.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Create a race</button>
       </div>
@@ -72,7 +72,7 @@ export function Races() {
       {data && visible.length === 0 && (
         <div className="card">
           <Empty emoji={tab === "completed" ? "🏆" : "🌱"} title={tab === "completed" ? "No finished races yet" : tab === "upcoming" ? "Nothing on the horizon" : "No races here"}>
-            <p>{tab === "completed" ? "Results from finished races will show up here." : "Create a race and invite some fellow snails."}</p>
+            <p>{tab === "completed" ? "Results from finished races will show up here." : "Create a race and invite some fellow pilots."}</p>
           </Empty>
         </div>
       )}
@@ -97,7 +97,7 @@ function RaceCard({ race }: { race: Race }) {
       <div className="row small muted">
         <span>🏁 Race to 100% of your goal</span>
         <span>📅 {formatDate(race.startDate)} → {race.endDate ? formatDate(race.endDate) : "open-ended"}</span>
-        <span>🐌 {race.participantCount} racing</span>
+        <span>✈️ {race.participantCount} flying</span>
       </div>
       {race.podium && race.podium.length > 0 && (
         <div>
@@ -129,7 +129,7 @@ function PeoplePicker({ selected, onChange, exclude }: { selected: number[]; onC
     () => (data ?? []).filter((u) => !exclude.includes(u.id) && u.name.toLowerCase().includes(q.toLowerCase())),
     [data, q, exclude],
   );
-  if (loading && !data) return <Loading label="Finding snails…" />;
+  if (loading && !data) return <Loading label="Finding pilots…" />;
   return (
     <div className="stack" style={{ gap: 8 }}>
       <input className="input" placeholder="Search racers…" aria-label="Search racers" value={q} onChange={(e) => setQ(e.target.value)} />

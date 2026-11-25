@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { sportEmoji, sportLabel } from "../../../shared/sports.ts";
+import { formatPoints, sportEmoji, sportLabel } from "../../../shared/sports.ts";
 import type { Unit } from "../../../shared/units.ts";
 import { LogButton, useActivityDialog } from "../components/ActivityForm.tsx";
 import { ConfirmDialog, Empty, ErrorBox, Loading, useToast } from "../components/ui.tsx";
@@ -13,7 +13,7 @@ type Filter = "all" | "manual" | "strava" | "excluded";
 
 export function Activities() {
   const me = useMe();
-  const { data, error, loading, reload } = useLoad(() => api<{ totalM: number; activities: Activity[] }>("/activities"), []);
+  const { data, error, loading, reload } = useLoad(() => api<{ totalM: number; totalPoints: number; activities: Activity[] }>("/activities"), []);
   const [filter, setFilter] = useState<Filter>("all");
 
   const list = (data?.activities ?? []).filter((a) =>
@@ -27,7 +27,9 @@ export function Activities() {
         <div>
           <h1>Activities</h1>
           <p>
-            {data ? <>Counted distance: <strong>{dist(data.totalM, me.unit)}</strong> across {data.activities.filter((a) => a.counts).length} activities.</> : "Your workout history."}
+            {data
+              ? <>Points earned: <strong>{formatPoints(data.totalPoints)}</strong> ({dist(data.totalM, me.unit)}) across {data.activities.filter((a) => a.counts).length} activities.</>
+              : "Your workout history."}
           </p>
         </div>
         <LogButton />
@@ -74,7 +76,7 @@ export function ActivityRow({ activity: a, unit, compact = false }: { activity: 
     setBusy(true);
     try {
       await api(`/activities/${a.id}`, { method: "DELETE" });
-      toast("Activity deleted. Your snail slid back a little.");
+      toast("Activity deleted. Your plane drifted back a little.");
       notifyDataChanged();
     } catch (e) {
       toast(e instanceof ApiError ? e.message : "Couldn't delete", "error");
@@ -110,6 +112,7 @@ export function ActivityRow({ activity: a, unit, compact = false }: { activity: 
       </div>
       <div>
         <div className="dist">{dist(a.distanceM, unit, 2)}</div>
+        <div className="faint" style={{ textAlign: "right" }}>{a.counts ? `+${formatPoints(a.points)}` : formatPoints(0)}</div>
         {!compact && (
           <div className="activity-actions">
             {manual && a.excludedReason === "duplicate" && (
@@ -128,7 +131,7 @@ export function ActivityRow({ activity: a, unit, compact = false }: { activity: 
       </div>
       {confirm && (
         <ConfirmDialog title="Delete this activity?" confirmLabel="Delete" danger busy={busy} onConfirm={remove} onCancel={() => setConfirm(false)}>
-          <p>{dist(a.distanceM, unit, 2)} of {sportLabel(a.sport).toLowerCase()} on {formatDate(a.date)} will be removed and your snail will move back.</p>
+          <p>{dist(a.distanceM, unit, 2)} of {sportLabel(a.sport).toLowerCase()} on {formatDate(a.date)} will be removed and your plane will move back.</p>
         </ConfirmDialog>
       )}
     </div>

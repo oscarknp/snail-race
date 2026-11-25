@@ -85,7 +85,7 @@ export async function completeConnect(
   if (!q.code) throw new HttpError(400, "Strava didn't send an authorization code.");
   const granted = (q.scope ?? "").split(",");
   if (!granted.includes("activity:read") && !granted.includes("activity:read_all")) {
-    throw new HttpError(400, "Snail Race needs permission to read your activities. Please tick “View data about your activities” on Strava.");
+    throw new HttpError(400, "Sky Race needs permission to read your activities. Please tick “View data about your activities” on Strava.");
   }
 
   const tokens = await client.exchangeCode(q.code);
@@ -99,7 +99,7 @@ export async function completeConnect(
   );
   if (other) {
     await client.revoke(tokens.access_token).catch(() => {});
-    throw new HttpError(409, "That Strava account is already connected to another Snail Race racer.");
+    throw new HttpError(409, "That Strava account is already connected to another Sky Race pilot.");
   }
   const name = [tokens.athlete?.firstname, tokens.athlete?.lastname].filter(Boolean).join(" ") || tokens.athlete?.username || null;
 
@@ -170,7 +170,7 @@ export function upsertStravaActivity(userId: number, a: StravaActivity, override
     externalId,
   );
   if (!(a.distance > 0)) {
-    // Distance-less sessions (yoga, weights...) can't move a snail.
+    // Distance-less sessions (yoga, weights...) can't move a plane.
     if (existing) {
       run("DELETE FROM activities WHERE id = ?", existing.id);
       return "deleted";

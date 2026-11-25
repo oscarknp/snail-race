@@ -1,4 +1,4 @@
-# Deploying Snail Race
+# Deploying Sky Race
 
 This package contains the full source code and a ready-built frontend (`web/dist`). It does **not** contain
 your local database, uploaded photos, or the `.env` file with your Strava secret. You create a fresh `.env`
@@ -6,7 +6,7 @@ on the server (step 2).
 
 You need:
 
-- A Linux server you can SSH into, with a domain name pointing at it (e.g. `snails.example.com`).
+- A Linux server you can SSH into, with a domain name pointing at it (e.g. `race.example.com`).
 - Either **Docker** (option A) or **Deno 2.9+** (option B).
 
 ## 1. Upload and unpack
@@ -29,7 +29,7 @@ Set at least these:
 
 | Setting | Value |
 |---|---|
-| `APP_URL` | `https://snails.example.com` (your real address, no trailing slash) |
+| `APP_URL` | `https://race.example.com` (your real address, no trailing slash) |
 | `APP_ENV` | `production` |
 | `TOKEN_ENCRYPTION_KEY` | output of `openssl rand -base64 32`. Generate it once and keep it. |
 | `TRUST_PROXY` | `true` (you'll be behind Caddy or nginx) |
@@ -43,7 +43,7 @@ Then restrict access to the file: `chmod 600 .env`
 
 ```bash
 docker compose up -d --build
-docker compose logs -f        # should print "Snail Race API listening" and "Strava: configured"
+docker compose logs -f        # should print "Sky Race API listening" and "Strava: configured"
 ```
 
 The database and photos live in the `snail-data` Docker volume, so they survive rebuilds and restarts.
@@ -69,23 +69,23 @@ requests to it. The app serves its own pages, so there's nothing to copy into ng
 
 ```bash
 sudo apt install nginx certbot python3-certbot-nginx
-sudo nano deploy/nginx.conf                             # replace snails.example.com (twice)
+sudo nano deploy/nginx.conf                             # replace race.example.com (twice)
 sudo cp deploy/nginx.conf /etc/nginx/sites-available/snail-race
 sudo ln -s /etc/nginx/sites-available/snail-race /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d snails.example.com              # adds the certificate + https redirect
+sudo certbot --nginx -d race.example.com              # adds the certificate + https redirect
 ```
 
 The config raises nginx's upload limit to 6 MB (photos) and sets the forwarded-IP header the app uses when
 `TRUST_PROXY=true`.
 
-Open `https://snails.example.com`. You should see the landing page.
+Open `https://race.example.com`. You should see the landing page.
 
 Prefer Caddy? Use [deploy/Caddyfile](deploy/Caddyfile) instead; it handles certificates by itself.
 
 ## 5. Point Strava at the new address
 
-1. In https://www.strava.com/settings/api, change **Authorization Callback Domain** to your domain (`snails.example.com`, without `https://`).
+1. In https://www.strava.com/settings/api, change **Authorization Callback Domain** to your domain (`race.example.com`, without `https://`).
 2. Turn on instant updates (webhooks), once the site is reachable over HTTPS:
    ```bash
    docker compose exec snail-race deno task strava:webhook create   # Docker

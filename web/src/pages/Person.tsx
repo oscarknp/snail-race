@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
-import { sportEmoji, sportLabel } from "../../../shared/sports.ts";
-import { SnailPortrait } from "../components/Snail.tsx";
+import { formatPoints, sportEmoji, sportLabel } from "../../../shared/sports.ts";
+import { RacerPortrait } from "../components/Racer.tsx";
 import { Empty, ErrorBox, Loading } from "../components/ui.tsx";
 import { api, type PublicUser, type Race, type Standing } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
@@ -23,12 +23,14 @@ export function Person() {
   return (
     <main className="page container">
       <section className="card" style={{ marginBottom: 20 }}>
-        <div className="snail-card">
-          <SnailPortrait user={user} size={170} />
+        <div className="racer-card">
+          <RacerPortrait user={user} size={170} />
           <div>
             <h1 style={{ marginBottom: 4 }}>{user.name}{user.id === me.id && <span className="faint"> (you)</span>}</h1>
-            <div className="muted">{user.sport ? `${sportEmoji(user.sport)} ${sportLabel(user.sport)}` : "Sport: a mystery"}</div>
-            {user.goalM && <div className="muted">Goal: {dist(user.goalM, me.unit, 0)}</div>}
+            <div className="muted">
+              {user.sports.length ? user.sports.map((sp) => `${sportEmoji(sp)} ${sportLabel(sp)}`).join(", ") : "Sports: a mystery"}
+            </div>
+            {user.goalPoints && <div className="muted">Goal: {user.goalPoints.toLocaleString()} points</div>}
             <div className="faint">Racing since {formatDate(data.memberSince)}</div>
           </div>
         </div>
@@ -46,7 +48,9 @@ export function Person() {
               {standing && (
                 <div style={{ textAlign: "right" }}>
                   <strong>{ordinal(standing.rank)}</strong> · {pct(standing.progress)} of goal
-                  <div className="faint">{dist(standing.distanceM, me.unit)}{standing.finishedOn ? " · finished 🏁" : ""}</div>
+                  <div className="faint">
+                    {formatPoints(standing.points)} · {dist(standing.distanceM, me.unit)}{standing.finishedOn ? " · finished 🏁" : ""}
+                  </div>
                 </div>
               )}
             </li>

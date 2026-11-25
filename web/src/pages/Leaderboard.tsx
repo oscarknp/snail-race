@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { sportEmoji, sportLabel } from "../../../shared/sports.ts";
+import { formatPoints, sportEmoji, sportLabel } from "../../../shared/sports.ts";
 import { Avatar, Empty, ErrorBox, Loading } from "../components/ui.tsx";
 import { api, type Race, type RaceDetail } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
@@ -23,7 +23,7 @@ export function Leaderboard() {
         <div>
           <h1>Leaderboard</h1>
           <p>
-            {race ? <>{race.name} · ranked by share of each racer's sport goal</> : "Who's the speediest snail?"}
+            {race ? <>{race.name} · ranked by share of each racer's points goal</> : "Who's the fastest pilot?"}
           </p>
         </div>
         {options.length > 1 && (
@@ -44,11 +44,12 @@ export function Leaderboard() {
                 <tr>
                   <th scope="col">#</th>
                   <th scope="col">Racer</th>
-                  <th scope="col">Sport</th>
+                  <th scope="col">Sports</th>
                   <th scope="col" className="num">Progress</th>
-                  <th scope="col" className="num">Distance</th>
+                  <th scope="col" className="num">Points</th>
                   <th scope="col" className="num">Goal</th>
                   <th scope="col" className="num">To go</th>
+                  <th scope="col" className="num">Distance</th>
                 </tr>
               </thead>
               <tbody>
@@ -63,15 +64,22 @@ export function Leaderboard() {
                         <span><strong>{s.user.name}</strong>{s.user.id === me.id && <span className="faint"> (you)</span>}</span>
                       </Link>
                     </td>
-                    <td>{s.user.sport ? `${sportEmoji(s.user.sport)} ${sportLabel(s.user.sport)}` : <span className="faint">not chosen</span>}</td>
+                    <td>
+                      {s.user.sports.length
+                        ? <span title={s.user.sports.map(sportLabel).join(", ")}>{s.user.sports.map(sportEmoji).join(" ")}</span>
+                        : <span className="faint">not chosen</span>}
+                    </td>
                     <td className="num" style={{ minWidth: 120 }}>
                       <strong>{pct(s.progress, 1)}</strong>
                       <div className="progress" style={{ height: 6, marginTop: 4 }} aria-hidden="true"><span style={{ width: `${s.progress * 100}%` }} /></div>
                     </td>
-                    <td className="num">{dist(s.distanceM, me.unit)}</td>
-                    <td className="num">{s.goalM ? dist(s.goalM, me.unit, 0) : "—"}</td>
+                    <td className="num"><strong>{formatPoints(s.points)}</strong></td>
+                    <td className="num">{s.goalPoints ? s.goalPoints.toLocaleString() : "—"}</td>
                     <td className="num">
-                      {s.finishedOn ? `🏁 ${formatDate(s.finishedOn)}` : s.remainingM !== null ? dist(s.remainingM, me.unit) : "—"}
+                      {s.finishedOn ? `🏁 ${formatDate(s.finishedOn)}` : s.remainingPoints !== null ? formatPoints(s.remainingPoints) : "—"}
+                    </td>
+                    <td className="num" title={s.bySport.map((b) => `${sportLabel(b.sport)}: ${dist(b.distanceM, me.unit)}`).join(", ")}>
+                      {dist(s.distanceM, me.unit)}
                     </td>
                   </tr>
                 ))}

@@ -1,11 +1,11 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { initials, shellColors } from "../lib/format.ts";
+import { initials, racerColors } from "../lib/format.ts";
 
 export function Avatar({ user, size = 40 }: { user: { id: number; name: string; photoUrl: string | null }; size?: number }) {
   const style = { width: size, height: size, fontSize: size * 0.4 };
   if (user.photoUrl) return <img className="avatar" src={user.photoUrl} alt="" style={style} />;
   return (
-    <span className="avatar" style={{ ...style, background: shellColors(user.id).stroke }} aria-hidden="true">
+    <span className="avatar" style={{ ...style, background: racerColors(user.id).stroke }} aria-hidden="true">
       {initials(user.name)}
     </span>
   );
@@ -125,7 +125,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   );
 }
 
-export function Empty({ emoji = "🐌", title, children }: { emoji?: string; title: string; children?: ReactNode }) {
+export function Empty({ emoji = "✈️", title, children }: { emoji?: string; title: string; children?: ReactNode }) {
   return (
     <div className="empty">
       <span className="emoji" aria-hidden="true">{emoji}</span>

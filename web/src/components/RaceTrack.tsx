@@ -1,32 +1,65 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Race, Standing } from "../lib/api.ts";
-import { sportEmoji, sportLabel } from "../../../shared/sports.ts";
+import { formatPoints, sportEmoji } from "../../../shared/sports.ts";
 import type { Unit } from "../../../shared/units.ts";
-import { dist, formatDate, ordinal, pct, shellColors } from "../lib/format.ts";
+import { dist, formatDate, ordinal, pct, racerColors } from "../lib/format.ts";
 import { useElementWidth, usePrefersReducedMotion } from "../lib/hooks.ts";
-import { SnailShape, TOKEN } from "./Snail.tsx";
+import { type Theme, useTheme } from "../lib/theme.tsx";
+import { RacerShape, TOKEN } from "./Racer.tsx";
 import { Avatar } from "./ui.tsx";
 
-// Two hand-drawn courses: a wide garden loop for desktops, a switchback for phones.
+// Two hand-drawn flight routes: a wide loop for desktops, a switchback for phones.
 const LAYOUTS = {
   wide: {
     w: 1000,
     h: 560,
     trackW: 66,
-    snail: 0.72,
+    scale: 0.72,
     d: "M 70 478 C 260 512, 470 446, 700 476 S 930 478, 925 400 S 860 318, 760 322 C 600 330, 470 292, 300 326 S 70 330, 78 248 S 160 160, 290 170 C 480 186, 640 128, 930 140",
   },
   tall: {
     w: 400,
     h: 920,
     trackW: 58,
-    snail: 0.62,
+    scale: 0.62,
     d: "M 60 860 L 280 860 C 370 860 370 720 280 720 L 120 720 C 30 720 30 580 120 580 L 280 580 C 370 580 370 440 280 440 L 120 440 C 30 440 30 300 120 300 L 280 300 C 370 300 370 160 280 160 L 90 160",
   },
 } as const;
 
 type Layout = (typeof LAYOUTS)[keyof typeof LAYOUTS];
+
+/** Day and night colours for the sky scene. */
+const SKY = {
+  light: {
+    stops: ["#79bff5", "#b5dcfb", "#e4f3ff"],
+    glow: "#fff3c4",
+    cloud: "#ffffff",
+    cloudOpacity: 0.92,
+    bird: "#2d4a66",
+    corridor: "#ffffff",
+    corridorOpacity: [0.28, 0.35],
+    route: "#0d2b4c",
+    routeOpacity: 0.55,
+    waypoint: { fill: "#ffffff", stroke: "#0d2b4c" },
+    label: { bg: "#ffffff", stroke: "#c3d3e3", text: "#10243b" },
+    leaderLabel: "#0d2b4c",
+  },
+  dark: {
+    stops: ["#050f24", "#0d2649", "#1a4170"],
+    glow: "#dbe6ff",
+    cloud: "#a9bdd6",
+    cloudOpacity: 0.2,
+    bird: "#a9bdd6",
+    corridor: "#9fc3ff",
+    corridorOpacity: [0.08, 0.12],
+    route: "#cfe3ff",
+    routeOpacity: 0.6,
+    waypoint: { fill: "#102036", stroke: "#cfe3ff" },
+    label: { bg: "#102036", stroke: "#2c4a70", text: "#e6eef7" },
+    leaderLabel: "#2d6cb8",
+  },
+} satisfies Record<Theme, unknown>;
 
 interface Pt {
   x: number;
@@ -88,11 +121,18 @@ function useAnimatedProgress(standings: Standing[]) {
   return { shown, moving };
 }
 
-/** How far along their own sport goal a racer is, in words. */
-function goalText(s: Standing, unit: Unit): string {
-  if (!s.goalM) return "hasn't picked a sport yet";
-  return `${dist(s.distanceM, unit)} of ${dist(s.goalM, unit, 0)} ${sportLabel(s.user.sport).toLowerCase()}`;
+/** Points toward the racer's own goal, in words. */
+function goalText(s: Standing): string {
+  if (!s.goalPoints) return "hasn't picked a sport yet";
+  return `${formatPoints(s.points)} of ${s.goalPoints.toLocaleString()}`;
 }
+
+/** Distance per sport, e.g. "🚴 300 km · 🏃 20 km". */
+function sportBreakdown(s: Standing, unit: Unit): string {
+  return s.bySport.map((b) => `${sportEmoji(b.sport)} ${dist(b.distanceM, unit)}`).join(" · ");
+}
+
+export const sportIcons = (sports: readonly string[]) => sports.map(sportEmoji).join("");
 
 /**
  * The race track. Everyone races to 100% of their own sport's goal, so a racer's position
@@ -105,6 +145,8 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
   const [geom, setGeom] = useState<{ len: number; d: string } | null>(null);
   const { shown, moving } = useAnimatedProgress(standings);
   const [focusId, setFocusId] = useState<number | null>(null);
+  const { theme } = useTheme();
+  const sky = SKY[theme];
 
   useLayoutEffect(() => {
     if (pathRef.current) setGeom({ len: pathRef.current.getTotalLength(), d: layout.d });
@@ -123,28 +165,47 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
     return { x: (b.x - a.x) / l, y: (b.y - a.y) / l };
   };
 
-  // Scatter garden decorations away from the track.
+  // Sky decorations: clouds may drift behind the route; birds and balloons keep clear of it.
   const decor = useMemo(() => {
     if (!ready) return [];
     const samples: Pt[] = [];
     for (let i = 0; i <= 240; i++) samples.push(pointAt(i / 240));
     const rand = mulberry32(layout.w * 7 + layout.h);
-    const items: { x: number; y: number; kind: number; s: number }[] = [];
-    let attempts = 0;
-    const target = layout === LAYOUTS.wide ? 46 : 34;
-    while (items.length < target && attempts++ < 3000) {
-      const x = 15 + rand() * (layout.w - 30);
-      const y = 15 + rand() * (layout.h - 30);
-      const clear = samples.every((s) => Math.hypot(s.x - x, s.y - y) > layout.trackW * 0.95);
-      const spaced = items.every((it) => Math.hypot(it.x - x, it.y - y) > 34);
-      if (clear && spaced) items.push({ x, y, kind: Math.floor(rand() * 6), s: 0.8 + rand() * 0.5 });
+    const items: { x: number; y: number; kind: Decor; s: number }[] = [];
+    const wide = layout === LAYOUTS.wide;
+    const want: [Decor, number, number][] = [["cloud", wide ? 11 : 8, 0], ["bird", wide ? 7 : 5, 0.9], ["balloon", wide ? 2 : 1, 1.1]];
+    for (const [kind, count, clearance] of want) {
+      let placed = 0;
+      let attempts = 0;
+      while (placed < count && attempts++ < 2000) {
+        const x = 20 + rand() * (layout.w - 40);
+        // Balloons hang below their anchor point, so keep them away from the top edge.
+        const top = kind === "balloon" ? 60 : 20;
+        const y = top + rand() * (layout.h - top - 20);
+        const clear = !clearance || samples.every((p) => Math.hypot(p.x - x, p.y - y) > layout.trackW * clearance);
+        const spaced = items.every((it) => Math.hypot(it.x - x, it.y - y) > (kind === "cloud" ? 90 : 40));
+        if (clear && spaced) {
+          items.push({ x, y, kind, s: kind === "cloud" ? 0.7 + rand() * 0.9 : 0.8 + rand() * 0.4 });
+          placed++;
+        }
+      }
     }
     return items;
   }, [ready, layout]);
 
+  const stars = useMemo(() => {
+    const rand = mulberry32(layout.w + layout.h * 3);
+    return Array.from({ length: layout === LAYOUTS.wide ? 70 : 55 }, () => ({
+      x: rand() * layout.w,
+      y: rand() * layout.h * 0.85,
+      r: 0.6 + rand() * 1.3,
+      o: 0.35 + rand() * 0.6,
+    }));
+  }, [layout]);
+
   const markerLabel = (f: number) => `${Math.round(f * 100)}%`;
 
-  // Place snails: rank order decides lanes so close racers don't stack exactly.
+  // Place racers: rank order decides lanes so close racers don't stack exactly.
   const placed = useMemo(() => {
     if (!ready) return [];
     const n = standings.length;
@@ -159,12 +220,13 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
       const x = pt.x - t.y * off;
       const y = pt.y + t.x * off + layout.trackW * 0.22;
       const flip = t.x < -0.2;
-      const tilt = Math.max(-18, Math.min(18, (Math.atan2(t.y, Math.abs(t.x)) * 180) / Math.PI)) * (flip ? -1 : 1);
+      // Planes pitch with the route.
+      const tilt = Math.max(-24, Math.min(24, (Math.atan2(t.y, Math.abs(t.x)) * 180) / Math.PI)) * (flip ? -1 : 1);
       return { s, x, y, flip, tilt: Math.abs(t.x) < 0.3 ? 0 : tilt };
     });
   }, [ready, shown, standings, layout]);
 
-  // Labels: me, leader and the focused snail first; skip ones that would collide.
+  // Labels: me, leader and the focused racer first; skip ones that would collide.
   const labels = useMemo(() => {
     const prio = (id: number, rank: number) => (id === focusId ? 0 : id === meId ? 1 : rank === 1 ? 2 : 3 + rank);
     const order = [...placed].sort((a, b) => prio(a.s.user.id, a.s.rank) - prio(b.s.user.id, b.s.rank));
@@ -175,7 +237,7 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
       const name = p.s.user.name.length > 14 ? p.s.user.name.slice(0, 13) + "…" : p.s.user.name;
       const w = (name.length + 10) * 7.2 + 16;
       for (let tier = 0; tier < 3; tier++) {
-        const y = p.y - 62 * layout.snail - 8 - tier * (h + 4);
+        const y = p.y - 62 * layout.scale - 8 - tier * (h + 4);
         const box = { x1: p.x - w / 2, x2: p.x + w / 2, y1: y - h, y2: y };
         if (!boxes.some((b) => b.x1 < box.x2 && box.x1 < b.x2 && b.y1 < box.y2 && box.y1 < b.y2)) {
           boxes.push(box);
@@ -203,72 +265,84 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
     <div className="track-wrap" ref={wrapRef} onMouseLeave={() => setFocusId(null)}>
       <svg className="track-svg" viewBox={`0 0 ${layout.w} ${layout.h}`} role="img" aria-label={summary}>
         <defs>
-          <pattern id="grass" width="40" height="40" patternUnits="userSpaceOnUse">
-            <rect width="40" height="40" fill="#86cf60" />
-            <path d="M6 30 l2 -7 l2 7 M24 14 l2 -6 l2 6 M30 36 l1.5 -5 l1.5 5" stroke="#6fbb4b" strokeWidth="2" fill="none" strokeLinecap="round" />
-          </pattern>
-          <pattern id="checker" width="12" height="12" patternUnits="userSpaceOnUse">
-            <rect width="12" height="12" fill="#fff" />
-            <rect width="6" height="6" fill="#1f2d1b" />
-            <rect x="6" y="6" width="6" height="6" fill="#1f2d1b" />
-          </pattern>
-          <radialGradient id="sunlight" cx="0.15" cy="0" r="0.9">
-            <stop offset="0" stopColor="#fff6c4" stopOpacity="0.55" />
-            <stop offset="1" stopColor="#fff6c4" stopOpacity="0" />
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={sky.stops[0]} />
+            <stop offset="0.55" stopColor={sky.stops[1]} />
+            <stop offset="1" stopColor={sky.stops[2]} />
+          </linearGradient>
+          <radialGradient id="sun" cx="0.08" cy="0.02" r="0.6">
+            <stop offset="0" stopColor={sky.glow} stopOpacity={theme === "dark" ? 0.35 : 0.9} />
+            <stop offset="0.25" stopColor={sky.glow} stopOpacity={theme === "dark" ? 0.12 : 0.35} />
+            <stop offset="1" stopColor={sky.glow} stopOpacity="0" />
           </radialGradient>
+          <pattern id="checker" width="8" height="8" patternUnits="userSpaceOnUse">
+            <rect width="8" height="8" fill="#fff" />
+            <rect width="4" height="4" fill="#0d2b4c" />
+            <rect x="4" y="4" width="4" height="4" fill="#0d2b4c" />
+          </pattern>
         </defs>
-        <rect width={layout.w} height={layout.h} fill="url(#grass)" />
-        <rect width={layout.w} height={layout.h} fill="url(#sunlight)" />
-
-        {decor.map((d, i) => <Decoration key={i} {...d} />)}
-
-        {/* Track */}
-        <path d={layout.d} fill="none" stroke="#8a6238" strokeWidth={layout.trackW + 10} strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-        <path ref={pathRef} d={layout.d} fill="none" stroke="#e3c59a" strokeWidth={layout.trackW} strokeLinecap="round" strokeLinejoin="round" />
-        <path d={layout.d} fill="none" stroke="#d2ab78" strokeWidth={layout.trackW - 18} strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
-        <path d={layout.d} fill="none" stroke="#fffaf0" strokeWidth="3" strokeDasharray="14 14" opacity="0.7" />
-
-        {/* Slime trail for the viewer */}
-        {ready && myProgress !== undefined && myProgress > 0 && (
-          <path
-            d={layout.d}
-            fill="none"
-            stroke={shellColors(meId).fill}
-            strokeWidth="9"
-            strokeLinecap="round"
-            opacity="0.45"
-            strokeDasharray={`${myProgress * geom!.len} ${geom!.len}`}
-          />
+        <rect width={layout.w} height={layout.h} fill="url(#sky)" />
+        <rect width={layout.w} height={layout.h} fill="url(#sun)" />
+        {theme === "dark" && (
+          <g aria-hidden="true">
+            {stars.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r} fill="#ffffff" opacity={st.o} />)}
+            <mask id="crescent">
+              <circle cx="64" cy="52" r="20" fill="#fff" />
+              <circle cx="73" cy="46" r="17" fill="#000" />
+            </mask>
+            <circle cx="64" cy="52" r="20" fill="#f1f4ff" mask="url(#crescent)" />
+          </g>
         )}
 
-        {/* Quarter markers */}
+        {decor.filter((d) => d.kind === "cloud").map((d, i) => <Decoration key={`c${i}`} {...d} sky={sky} />)}
+
+        {/* Flight route: a soft corridor with a dotted line, like an airline route map */}
+        <path d={layout.d} fill="none" stroke={sky.corridor} strokeWidth={layout.trackW} strokeLinecap="round" strokeLinejoin="round" opacity={sky.corridorOpacity[0]} />
+        <path ref={pathRef} d={layout.d} fill="none" stroke={sky.corridor} strokeWidth={layout.trackW * 0.45} strokeLinecap="round" strokeLinejoin="round" opacity={sky.corridorOpacity[1]} />
+        <path d={layout.d} fill="none" stroke={sky.route} strokeWidth="3" strokeDasharray="1 11" strokeLinecap="round" opacity={sky.routeOpacity} />
+
+        {decor.filter((d) => d.kind !== "cloud").map((d, i) => <Decoration key={`d${i}`} {...d} sky={sky} />)}
+
+        {/* Contrail behind the viewer's plane */}
+        {ready && myProgress !== undefined && myProgress > 0 && (
+          <g fill="none" strokeLinecap="round" strokeDasharray={`${myProgress * geom!.len} ${geom!.len}`}>
+            <path d={layout.d} stroke="#ffffff" strokeWidth="9" opacity="0.9" />
+            <path d={layout.d} stroke={racerColors(meId).fill} strokeWidth="3" opacity="0.9" />
+          </g>
+        )}
+
+        {/* Waypoints at 25 / 50 / 75 % */}
         {ready && [0.25, 0.5, 0.75].map((f) => {
           const pt = pointAt(f);
           const t = tangentAt(f);
-          const ox = -t.y * (layout.trackW / 2 + 16);
-          const oy = t.x * (layout.trackW / 2 + 16);
+          const ox = -t.y * (layout.trackW / 2 + 18);
+          const oy = t.x * (layout.trackW / 2 + 18);
           const side = oy > 0 ? -1 : 1;
           return (
-            <g key={f} transform={`translate(${pt.x + ox * side} ${pt.y + oy * side})`}>
-              <rect x="-2" y="-4" width="4" height="22" fill="#8a6238" />
-              <rect x="-27" y="-22" width="54" height="22" rx="5" fill="#fffaf0" stroke="#8a6238" strokeWidth="2.5" />
-              <text y="-6" textAnchor="middle" fontSize="12" fontWeight="800" fill="#5a3d1c" fontFamily="Nunito, sans-serif">{markerLabel(f)}</text>
+            <g key={f}>
+              <path d={`M${pt.x},${pt.y - 7} L${pt.x + 6.5},${pt.y + 4.5} L${pt.x - 6.5},${pt.y + 4.5} Z`} fill={sky.waypoint.fill} stroke={sky.waypoint.stroke} strokeWidth="2" strokeLinejoin="round" />
+              <g transform={`translate(${pt.x + ox * side} ${pt.y + oy * side})`}>
+                <rect x="-26" y="-11" width="52" height="22" rx="4" fill="#0d2b4c" />
+                <text y="5" textAnchor="middle" fontSize="14" fontWeight="700" fill="#ffd166" fontFamily="'Barlow Condensed', sans-serif" letterSpacing="0.5">
+                  {markerLabel(f)}
+                </text>
+              </g>
             </g>
           );
         })}
 
-        {/* Start line */}
+        {/* Takeoff runway */}
         {start && startT && (
           <g transform={`translate(${start.x} ${start.y}) rotate(${(Math.atan2(startT.y, startT.x) * 180) / Math.PI})`}>
-            <rect x="-6" y={-layout.trackW / 2} width="12" height={layout.trackW} fill="url(#checker)" />
+            <Runway width={layout.trackW * 0.62} />
             <g transform={`rotate(${-(Math.atan2(startT.y, startT.x) * 180) / Math.PI})`}>
               {(() => {
                 const below = start.y + layout.trackW / 2 + 40 < layout.h;
-                const y = below ? layout.trackW / 2 + 10 : -layout.trackW / 2 - 34;
+                const y = below ? layout.trackW / 2 + 8 : -layout.trackW / 2 - 32;
                 return (
                   <>
-                    <rect x="-30" y={y} width="60" height="24" rx="12" fill="#2f6b2a" />
-                    <text x="0" y={y + 17} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Nunito, sans-serif">START</text>
+                    <rect x="-38" y={y} width="76" height="24" rx="4" fill="#0d2b4c" />
+                    <text x="0" y={y + 17} textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700" fontFamily="'Barlow Condensed', sans-serif" letterSpacing="1">✈ TAKEOFF</text>
                   </>
                 );
               })()}
@@ -276,50 +350,50 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
           </g>
         )}
 
-        {/* Finish line + flag */}
+        {/* Landing runway, control tower and windsock */}
         {finish && finishT && (
           <g>
             <g transform={`translate(${finish.x} ${finish.y}) rotate(${(Math.atan2(finishT.y, finishT.x) * 180) / Math.PI})`}>
-              <rect x="-8" y={-layout.trackW / 2 - 4} width="16" height={layout.trackW + 8} fill="url(#checker)" stroke="#1f2d1b" strokeWidth="1.5" />
+              <Runway width={layout.trackW * 0.62} finish />
             </g>
-            <g transform={`translate(${finish.x + (layout === LAYOUTS.wide ? 22 : -22)} ${finish.y - layout.trackW / 2 - 4})`}>
-              <rect x="-2" y="-62" width="4" height="64" fill="#5a3d1c" rx="2" />
-              <g className="flag">
-                <rect x="2" y="-62" width="40" height="26" fill="url(#checker)" stroke="#1f2d1b" strokeWidth="1.5" />
+            <g transform={`translate(${finish.x + (layout === LAYOUTS.wide ? -34 : 34)} ${finish.y - layout.trackW / 2 - 4})`}>
+              <Tower />
+              <g transform={`translate(${layout === LAYOUTS.wide ? -26 : 22} 0)`}>
+                <Windsock />
               </g>
-              <rect x="-34" y="-90" width="68" height="22" rx="11" fill="#d9482a" />
-              <text y="-74" textAnchor="middle" fill="#fff" fontSize="12.5" fontWeight="800" fontFamily="Nunito, sans-serif">FINISH</text>
+              <rect x="-36" y="-100" width="72" height="22" rx="4" fill="#cf4313" />
+              <text y="-84" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700" fontFamily="'Barlow Condensed', sans-serif" letterSpacing="1">FINISH</text>
             </g>
           </g>
         )}
 
-        {/* Snails, back to front */}
+        {/* Racers, back to front */}
         {[...placed].sort((a, b) => a.y - b.y).map(({ s, x, y, flip, tilt }) => {
           const me = s.user.id === meId;
-          const isLeader = s.rank === 1 && s.distanceM > 0;
+          const isLeader = s.rank === 1 && s.points > 0;
           const photo = Boolean(s.user.photoUrl);
           return (
             <g
               key={s.user.id}
-              className="snail-g"
+              className="racer-g"
               transform={`translate(${x} ${y})`}
               tabIndex={0}
               role="button"
-              aria-label={`${s.user.name}${me ? " (you)" : ""}: ${ordinal(s.rank)} place, ${pct(s.progress)} of goal, ${goalText(s, unit)}`}
+              aria-label={`${s.user.name}${me ? " (you)" : ""}: ${ordinal(s.rank)} place, ${pct(s.progress)} of goal, ${goalText(s)} points`}
               onMouseEnter={() => setFocusId(s.user.id)}
               onFocus={() => setFocusId(s.user.id)}
               onBlur={() => setFocusId(null)}
               onClick={() => setFocusId(focusId === s.user.id ? null : s.user.id)}
             >
-              {/* Snails turn to face the way they travel; photos always stay upright and unmirrored. */}
-              <g transform={photo ? `scale(${layout.snail})` : `rotate(${tilt}) scale(${(flip ? -1 : 1) * layout.snail} ${layout.snail})`}>
-                <SnailShape user={s.user} leader={isLeader} moving={moving.has(s.user.id)} />
+              {/* Planes turn to face the way they fly; photos always stay upright and unmirrored. */}
+              <g transform={photo ? `scale(${layout.scale})` : `rotate(${tilt}) scale(${(flip ? -1 : 1) * layout.scale} ${layout.scale})`}>
+                <RacerShape user={s.user} leader={isLeader} moving={moving.has(s.user.id)} />
               </g>
               {me && (
                 <circle
                   cx="0"
-                  cy={(photo ? TOKEN.cy : -22) * layout.snail}
-                  r={(photo ? TOKEN.r + 5 : 34) * layout.snail}
+                  cy={(photo ? TOKEN.cy : -22) * layout.scale}
+                  r={(photo ? TOKEN.r + 5 : 34) * layout.scale}
                   fill="none"
                   stroke="#fff"
                   strokeWidth="2.5"
@@ -337,35 +411,36 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
           if (tier === undefined) return null;
           const me = s.user.id === meId;
           const name = s.user.name.length > 14 ? s.user.name.slice(0, 13) + "…" : s.user.name;
-          const text = `${sportEmoji(s.user.sport)} ${name} · ${pct(s.progress)}`;
+          const text = `${sportIcons(s.user.sports)} ${name} · ${pct(s.progress)}`;
           const w = text.length * 7.2 + 16;
-          const ly = y - 62 * layout.snail - 8 - tier * 26;
+          const ly = y - 62 * layout.scale - 8 - tier * 26;
           return (
-            <g key={s.user.id} transform={`translate(${x} ${ly})`} className="snail-label" aria-hidden="true">
-              {tier > 0 && <line x1="0" y1="0" x2="0" y2={tier * 26} stroke="#1f2d1b" strokeWidth="1.5" opacity="0.4" />}
-              <rect x={-w / 2} y="-22" width={w} height="22" rx="11" fill={me ? "#d9482a" : s.rank === 1 ? "#1f2d1b" : "#fffaf0"} stroke={me || s.rank === 1 ? "none" : "#c9bfa6"} />
-              <text y="-6.5" textAnchor="middle" fontSize="12.5" fill={me || s.rank === 1 ? "#fff" : "#1f2d1b"}>{text}</text>
+            <g key={s.user.id} transform={`translate(${x} ${ly})`} className="racer-label" aria-hidden="true">
+              {tier > 0 && <line x1="0" y1="0" x2="0" y2={tier * 26} stroke={sky.label.text} strokeWidth="1.5" opacity="0.4" />}
+              <rect x={-w / 2} y="-22" width={w} height="22" rx="6" fill={me ? "#cf4313" : s.rank === 1 ? sky.leaderLabel : sky.label.bg} stroke={me || s.rank === 1 ? "none" : sky.label.stroke} />
+              <text y="-6.5" textAnchor="middle" fontSize="12.5" fill={me || s.rank === 1 ? "#fff" : sky.label.text}>{text}</text>
             </g>
           );
         })}
       </svg>
 
       {standings.length === 0 && (
-        <div className="track-empty"><div>No snails on the track yet. Invite some friends! 🐌</div></div>
+        <div className="track-empty"><div>No pilots on the route yet. Invite some friends! ✈️</div></div>
       )}
       {race.status === "upcoming" && standings.length > 0 && (
-        <div className="track-empty"><div>The race starts {formatDate(race.startDate)}. Snails are warming up their slime…</div></div>
+        <div className="track-empty"><div>Departure on {formatDate(race.startDate)}. Pilots are running their pre-flight checks…</div></div>
       )}
 
       {focused && width > 0 && (
-        <div className="snail-tip" style={{ left: Math.min(Math.max(focused.x * scale, 100), width - 100), top: (focused.y - 50 * layout.snail) * scale }}>
+        <div className="racer-tip" style={{ left: Math.min(Math.max(focused.x * scale, 100), width - 100), top: (focused.y - 50 * layout.scale) * scale }}>
           <strong>{focused.s.user.name}{focused.s.user.id === meId ? " (you)" : ""}</strong>
           <div>{ordinal(focused.s.rank)} place · {pct(focused.s.progress, 1)} of goal</div>
-          <div className="faint">{sportEmoji(focused.s.user.sport)} {goalText(focused.s, unit)}</div>
+          <div>{goalText(focused.s)}</div>
+          {focused.s.bySport.length > 0 && <div className="faint">{sportBreakdown(focused.s, unit)}</div>}
           <div className="faint">
             {focused.s.finishedOn
               ? `Finished ${formatDate(focused.s.finishedOn)} 🎉`
-              : focused.s.remainingM !== null && `${dist(focused.s.remainingM, unit)} to go`}
+              : focused.s.remainingPoints !== null && `${formatPoints(focused.s.remainingPoints)} to go`}
           </div>
         </div>
       )}
@@ -374,54 +449,77 @@ export function RaceTrack({ race, standings, meId, unit }: { race: Race; standin
   );
 }
 
-function Decoration({ x, y, kind, s }: { x: number; y: number; kind: number; s: number }) {
+type Decor = "cloud" | "bird" | "balloon";
+
+function Decoration({ x, y, kind, s, sky }: { x: number; y: number; kind: Decor; s: number; sky: (typeof SKY)[Theme] }) {
   const t = `translate(${x} ${y}) scale(${s})`;
-  switch (kind) {
-    case 0: // daisy
-      return (
-        <g transform={t}>
-          {[0, 60, 120, 180, 240, 300].map((a) => <ellipse key={a} cx="0" cy="-6" rx="3.5" ry="6" fill="#fff" transform={`rotate(${a})`} />)}
-          <circle r="4" fill="#ffc93c" />
-        </g>
-      );
-    case 1: // tulip
-      return (
-        <g transform={t}>
-          <path d="M0 0 L0 14" stroke="#3f8f3a" strokeWidth="2.5" />
-          <path d="M-7 -8 Q-7 4 0 4 Q7 4 7 -8 L3.5 -4 L0 -10 L-3.5 -4 Z" fill="#ff6f91" />
-        </g>
-      );
-    case 2: // mushroom
-      return (
-        <g transform={t}>
-          <rect x="-3.5" y="-4" width="7" height="10" rx="3" fill="#fff4e0" />
-          <path d="M-12 -3 Q0 -20 12 -3 Z" fill="#e5484d" />
-          <circle cx="-4" cy="-9" r="2" fill="#fff" />
-          <circle cx="4" cy="-7" r="1.6" fill="#fff" />
-        </g>
-      );
-    case 3: // pebbles
-      return (
-        <g transform={t}>
-          <ellipse cx="0" cy="0" rx="9" ry="6" fill="#bfb6a3" />
-          <ellipse cx="9" cy="3" rx="5" ry="3.5" fill="#d3ccbc" />
-        </g>
-      );
-    case 4: // clover
-      return (
-        <g transform={t} fill="#4fa83a">
-          <circle cx="-4" cy="-3" r="4.5" />
-          <circle cx="4" cy="-3" r="4.5" />
-          <circle cx="0" cy="3" r="4.5" />
-        </g>
-      );
-    default: // grass tuft
-      return (
-        <g transform={t}>
-          <path d="M-6 6 Q-5 -4 -8 -10 M0 6 Q0 -6 2 -13 M6 6 Q5 -3 9 -9" stroke="#3f8f3a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </g>
-      );
+  if (kind === "cloud") {
+    return (
+      <g transform={t} fill={sky.cloud} opacity={sky.cloudOpacity}>
+        <ellipse cx="0" cy="0" rx="34" ry="11" />
+        <circle cx="-14" cy="-6" r="12" />
+        <circle cx="4" cy="-12" r="16" />
+        <circle cx="20" cy="-4" r="11" />
+      </g>
+    );
   }
+  if (kind === "bird") {
+    return (
+      <g transform={t} className="bob">
+        <path d="M-9 0 Q-4.5 -6 0 0 Q4.5 -6 9 0" fill="none" stroke={sky.bird} strokeWidth="2.2" strokeLinecap="round" />
+      </g>
+    );
+  }
+  // hot-air balloon
+  return (
+    <g transform={t} className="bob">
+      <path d="M0 -36 C-17 -36 -20 -18 -12 -8 L-5 2 L5 2 L12 -8 C20 -18 17 -36 0 -36 Z" fill="#ffc23d" stroke="#a8730a" strokeWidth="1.5" />
+      <path d="M0 -36 C-6 -30 -7 -14 -4 2 M0 -36 C6 -30 7 -14 4 2" fill="none" stroke="#cf4313" strokeWidth="3" />
+      <path d="M-5 2 L-4 8 M5 2 L4 8" stroke="#7a5a2b" strokeWidth="1.2" />
+      <rect x="-5" y="8" width="10" height="7" rx="1.5" fill="#a0703c" />
+    </g>
+  );
+}
+
+/** A short runway drawn along the route: asphalt, centreline and threshold bars. */
+function Runway({ width, finish = false }: { width: number; finish?: boolean }) {
+  const len = 84;
+  return (
+    <g>
+      <rect x={-len / 2} y={-width / 2} width={len} height={width} rx="3" fill="#4a5564" />
+      <line x1={-len / 2 + 14} y1="0" x2={len / 2 - 14} y2="0" stroke="#fff" strokeWidth="2" strokeDasharray="7 6" />
+      {[-0.32, -0.16, 0.16, 0.32].map((f) => (
+        <rect key={f} x={-len / 2 + 3} y={f * width - 1.5} width="8" height="3" fill="#fff" />
+      ))}
+      {finish && <rect x={len / 2 - 12} y={-width / 2} width="10" height={width} fill="url(#checker)" />}
+    </g>
+  );
+}
+
+function Tower() {
+  return (
+    <g>
+      <rect x="-5" y="-46" width="10" height="46" fill="#e9eef4" stroke="#7d91a8" strokeWidth="1.5" />
+      <path d="M-15 -46 L15 -46 L11 -61 L-11 -61 Z" fill="#6cc4ff" stroke="#0d2b4c" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M-5 -49 L-4 -58 M2 -49 L2 -58" stroke="#fff" strokeWidth="1.5" opacity="0.8" />
+      <rect x="-13" y="-65" width="26" height="4" rx="1" fill="#0d2b4c" />
+      <line x1="0" y1="-65" x2="0" y2="-74" stroke="#0d2b4c" strokeWidth="1.5" />
+      <circle className="beacon" cx="0" cy="-75" r="2.5" fill="#ff4b3e" />
+    </g>
+  );
+}
+
+function Windsock() {
+  return (
+    <g>
+      <line x1="0" y1="0" x2="0" y2="-40" stroke="#7d91a8" strokeWidth="2" />
+      <g className="flag">
+        <path d="M0 -41 L9 -40 L9 -32 L0 -31 Z" fill="#cf4313" />
+        <path d="M9 -40 L18 -39 L18 -33 L9 -32 Z" fill="#fff" />
+        <path d="M18 -39 L26 -38 L26 -34 L18 -33 Z" fill="#cf4313" />
+      </g>
+    </g>
+  );
 }
 
 /** Compact standings list shown under the track. */
@@ -431,11 +529,11 @@ export function StandingsList({ standings, meId, unit }: { standings: Standing[]
     <div className="standings">
       {standings.map((s) => (
         <div key={s.user.id} className={`standing-row${s.user.id === meId ? " me" : ""}`}>
-          <div className={`rank r${s.rank}`}>{s.rank <= 3 && s.distanceM > 0 ? ["🥇", "🥈", "🥉"][s.rank - 1] : s.rank}</div>
+          <div className={`rank r${s.rank}`}>{s.rank <= 3 && s.points > 0 ? ["🥇", "🥈", "🥉"][s.rank - 1] : s.rank}</div>
           <Avatar user={s.user} />
           <div style={{ minWidth: 0 }}>
             <div className="name">
-              <span aria-hidden="true">{sportEmoji(s.user.sport)} </span>
+              <span aria-hidden="true">{sportIcons(s.user.sports)} </span>
               <Link to={`/people/${s.user.id}`} style={{ color: "inherit", textDecoration: "none" }}>{s.user.name}</Link>
               {s.user.id === meId && <span className="badge badge-warn" style={{ marginLeft: 6 }}>You</span>}
             </div>
@@ -443,7 +541,7 @@ export function StandingsList({ standings, meId, unit }: { standings: Standing[]
           </div>
           <div className="right">
             <strong>{pct(s.progress)}</strong>
-            <div className="faint">{s.finishedOn ? "Finished! 🏁" : goalText(s, unit)}</div>
+            <div className="faint" title={sportBreakdown(s, unit)}>{s.finishedOn ? "Finished! 🏁" : `${goalText(s)} pts`}</div>
           </div>
         </div>
       ))}

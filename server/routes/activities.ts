@@ -7,6 +7,7 @@ import { type AppEnv, currentUser, HttpError, idParam, jsonBody, parse, requireA
 import type { ActivityRow, UserRow } from "../lib/types.ts";
 import {
   applyRaceWindows,
+  countedPoints,
   countedTotal,
   evaluate,
   EXCLUSION_LABELS,
@@ -24,6 +25,7 @@ export function activityResponse(a: Evaluated) {
     name: a.name,
     date: a.date,
     distanceM: a.distance_m,
+    points: a.points,
     movingTimeS: a.moving_time_s,
     notes: a.notes,
     counts: a.counts,
@@ -60,12 +62,12 @@ function activityInput(user: UserRow) {
   return z.object({
     sport: z.enum(SPORT_IDS, { errorMap: () => ({ message: "Choose a sport" }) }),
     date: isoDate
-      .refine((d) => d <= latest, "That date is in the future — snails can't time travel")
+      .refine((d) => d <= latest, "That date is in the future — even jets can't time travel")
       .refine((d) => d >= "2000-01-01", "That date is too far in the past"),
     distance: z.number({ invalid_type_error: "Enter a distance" })
       .finite()
       .positive("Distance must be greater than zero")
-      .max(1000, "That's further than any snail (or human) goes in one go"),
+      .max(1000, "That's further than anyone goes in one go"),
     unit: z.enum(["km", "mi"]).default(user.unit),
     name: z.string().trim().max(80).optional().transform((v) => v || null),
     notes: z.string().trim().max(500, "Notes must be 500 characters or fewer").optional().transform((v) => v || null),
@@ -81,7 +83,7 @@ function findOwn(userId: number, id: number): ActivityRow {
 
 function assertManual(a: ActivityRow) {
   if (a.source !== "manual") {
-    throw new HttpError(403, "Imported activities are managed by their source. Edit them there, or change your sport selection.");
+    throw new HttpError(403, "Imported activities are managed by their source. Edit them there, or change your race sports.");
   }
 }
 
@@ -92,6 +94,7 @@ export const activities = new Hono<AppEnv>()
     const evaluated = evaluatedActivitiesFor(user);
     return c.json({
       totalM: countedTotal(evaluated),
+      totalPoints: countedPoints(evaluated),
       activities: evaluated.map(activityResponse),
     });
   })

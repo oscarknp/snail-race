@@ -175,6 +175,19 @@ const MIGRATIONS: string[] = [
   DROP TABLE races;
   ALTER TABLE races_new RENAME TO races;
   `,
+  // v3: points system; a racer takes part in 1-3 sports, stored as a comma-separated list.
+  `
+  ALTER TABLE users ADD COLUMN sports TEXT NOT NULL DEFAULT '';
+  UPDATE users SET sports = COALESCE(sport, '');
+  ALTER TABLE users DROP COLUMN sport;
+  `,
+  // v4: renamed to Sky Race. Rename the default race too, unless an admin already customised it.
+  `
+  UPDATE races SET
+    name = 'The Grand Sky Rally',
+    description = 'The everyone-welcome air race. Every pilot takes off here.'
+  WHERE is_default = 1 AND name = 'The Great Garden Grand Prix';
+  `,
 ];
 
 let db: DatabaseSync | null = null;

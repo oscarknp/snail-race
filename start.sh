@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs Snail Race from this folder at http://localhost:8000 (stop it with Ctrl+C).
+# Runs Sky Race from this folder at http://localhost:8000 (stop it with Ctrl+C).
 # The first run asks for your Strava app details (optional) and saves them in .env.
 cd "$(dirname "$0")" || exit 1
 PORT="${PORT:-8000}"
@@ -11,7 +11,7 @@ if ! command -v deno >/dev/null 2>&1; then
   done
 fi
 if ! command -v deno >/dev/null 2>&1; then
-  echo "Snail Race needs Deno (https://deno.com). Install it with one of these, then run this again:"
+  echo "Sky Race needs Deno (https://deno.com). Install it with one of these, then run this again:"
   echo "  brew install deno"
   echo "  curl -fsSL https://deno.land/install.sh | sh"
   exit 1
@@ -41,7 +41,7 @@ if [ ! -f .env ]; then
   echo "Saved. Edit .env any time to change settings (see .env.example)."
 fi
 
-echo "Starting Snail Race at http://localhost:$PORT (the first start downloads a few packages)..."
+echo "Starting Sky Race at http://localhost:$PORT (the first start downloads a few packages)..."
 if [ -z "$NO_BROWSER" ]; then
   (sleep 4; open "http://localhost:$PORT" 2>/dev/null || xdg-open "http://localhost:$PORT" 2>/dev/null) &
 fi

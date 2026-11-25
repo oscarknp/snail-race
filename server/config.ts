@@ -23,14 +23,14 @@ export const config = {
   // Set when running behind a reverse proxy (Fly, Render, nginx...) so client IPs come from X-Forwarded-For.
   trustProxy: env("TRUST_PROXY", "false") === "true",
   defaultRace: {
-    name: env("DEFAULT_RACE_NAME", "The Great Garden Grand Prix") as string,
+    name: env("DEFAULT_RACE_NAME", "The Grand Sky Rally") as string,
   },
   mail: {
     smtpHost: env("SMTP_HOST"),
     smtpPort: Number(env("SMTP_PORT", "587")),
     smtpUser: env("SMTP_USER"),
     smtpPass: env("SMTP_PASS"),
-    from: env("MAIL_FROM", "Snail Race <no-reply@snailrace.local>") as string,
+    from: env("MAIL_FROM", "Sky Race <no-reply@skyrace.local>") as string,
   },
   strava: {
     clientId: env("STRAVA_CLIENT_ID"),

@@ -1,11 +1,11 @@
-# Run Snail Race on your computer
+# Run Sky Race on your computer
 
 Everything runs from this folder. Your data (accounts, activities, photos) is saved in `data/` and `uploads/`
 inside it.
 
 ## 1. Install Deno (once)
 
-Snail Race runs on [Deno](https://deno.com). On a Mac with Homebrew:
+Sky Race runs on [Deno](https://deno.com). On a Mac with Homebrew:
 
 ```bash
 brew install deno
@@ -15,7 +15,7 @@ Or use the official installer: `curl -fsSL https://deno.land/install.sh | sh`
 
 ## 2. Start it
 
-- **Mac:** double-click **Start Snail Race.command**. The first time, macOS may say it's from an unidentified
+- **Mac:** double-click **Start Sky Race.command**. The first time, macOS may say it's from an unidentified
   developer: right-click the file, choose **Open**, then **Open** again.
 - **Or in Terminal** (Mac or Linux): `sh start.sh`
 

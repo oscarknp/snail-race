@@ -5,8 +5,8 @@ export function NotFound() {
   return (
     <main className="page container">
       <div className="card">
-        <Empty title="This page has slithered off" emoji="🐌">
-          <p>We looked under every leaf. <Link to="/">Back to the race</Link></p>
+        <Empty title="This page has flown off course" emoji="🧭">
+          <p>We checked every runway. <Link to="/">Back to the race</Link></p>
         </Empty>
       </div>
     </main>

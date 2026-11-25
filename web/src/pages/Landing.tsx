@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { RaceTrack } from "../components/RaceTrack.tsx";
-import { sportTargetM } from "../../../shared/sports.ts";
+import { goalPoints, type Sport } from "../../../shared/sports.ts";
 import type { Race, Standing } from "../lib/api.ts";
 
 const DEMO_RACE: Race = {
@@ -19,24 +19,26 @@ const DEMO_RACE: Race = {
   myStatus: null,
 };
 
-const DEMO = [
-  { id: 1, name: "Speedy Sue", sport: "running", pct: 72 },
-  { id: 2, name: "Turbo Tom", sport: "cycling", pct: 58 },
-  { id: 4, name: "Rowan Rower", sport: "rowing", pct: 31 },
-  { id: 5, name: "Gentle Gus", sport: "swimming", pct: 12 },
-] as const;
+const DEMO: { id: number; name: string; sports: Sport[]; pct: number }[] = [
+  { id: 1, name: "Speedy Sue", sports: ["running"], pct: 72 },
+  { id: 2, name: "Turbo Tom", sports: ["cycling", "running"], pct: 58 },
+  { id: 4, name: "Rowan Rower", sports: ["rowing", "swimming", "cycling"], pct: 31 },
+  { id: 5, name: "Gentle Gus", sports: ["swimming"], pct: 12 },
+];
 
 function demoStandings(bonus: number): Standing[] {
   return DEMO.map((d, i) => {
     const share = Math.min(100, d.pct + bonus * (i === 2 ? 3 : 1)) / 100;
-    const goalM = sportTargetM(d.sport)!;
+    const goal = goalPoints(d.sports)!;
     return {
       rank: 0,
-      user: { id: d.id, name: d.name, sport: d.sport, goalM, unit: "km" as const, photoUrl: null },
-      distanceM: share * goalM,
-      goalM,
+      user: { id: d.id, name: d.name, sports: d.sports, goalPoints: goal, unit: "km" as const, photoUrl: null },
+      points: share * goal,
+      goalPoints: goal,
       progress: share,
-      remainingM: (1 - share) * goalM,
+      remainingPoints: (1 - share) * goal,
+      distanceM: 0,
+      bySport: [],
       finishedOn: null,
       activityCount: 3,
       lastActivityOn: null,
@@ -55,14 +57,14 @@ export function Landing() {
     <main className="container">
       <section className="landing-hero">
         <div>
-          <h1>Every workout moves your snail closer to the finish line.</h1>
+          <h1>Every workout flies you closer to the finish.</h1>
           <p className="lede">
-            Snail Race turns your runs, walks, rides and swims into a friendly race. Upload a photo, become a snail,
-            log your distance by hand or sync it from Strava, and slime past your friends.
+            Sky Race turns your rides, runs, rows and swims into a friendly air race. Earn points for every kilometre,
+            log by hand or sync from Strava, and fly past your friends on the way to the finish.
           </p>
           <div className="row" style={{ marginTop: 20 }}>
-            <Link to="/register" className="btn btn-primary">Create my snail</Link>
-            <Link to="/login" className="btn btn-secondary">I already race</Link>
+            <Link to="/register" className="btn btn-primary">Get my wings</Link>
+            <Link to="/login" className="btn btn-secondary">I already fly</Link>
           </div>
         </div>
         <div className="race-hero" aria-label="Demo race">
@@ -72,15 +74,15 @@ export function Landing() {
       <section className="grid grid-3" style={{ marginBottom: 48 }}>
         <div className="card feature">
           <span className="icon" aria-hidden="true">📸</span>
-          <div><h3>Race as yourself</h3><p className="muted">Upload a profile photo and it becomes your racer on the track. No photo? You race as a snail.</p></div>
+          <div><h3>Race as yourself</h3><p className="muted">Upload a profile photo and it becomes your pilot badge in the sky. No photo? You fly your own little plane.</p></div>
         </div>
         <div className="card feature">
           <span className="icon" aria-hidden="true">📏</span>
-          <div><h3>Four sports, one track</h3><p className="muted">Cycle 900 km, row 300 km, run 225 km or swim 75 km. Everyone races to 100% of their own goal. Log by hand or sync from Strava.</p></div>
+          <div><h3>Four sports, one track</h3><p className="muted">Earn points per km: cycling 1, rowing 3, running 4, swimming 12. Race in up to 3 sports to 900, 1050 or 1200 points. Log by hand or sync from Strava.</p></div>
         </div>
         <div className="card feature">
           <span className="icon" aria-hidden="true">🏁</span>
-          <div><h3>Race your people</h3><p className="muted">Everyone joins the Grand Prix. Start your own races with friends, dates and a finish line.</p></div>
+          <div><h3>Race your people</h3><p className="muted">Everyone joins the Sky Rally. Start your own races with friends, dates and a finish line.</p></div>
         </div>
       </section>
     </main>

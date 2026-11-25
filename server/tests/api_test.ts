@@ -34,14 +34,16 @@ Deno.test("duplicate email and weak password are rejected with field errors", as
   resetDb();
   await registerUser("Gary");
   const c = new TestClient();
-  const dup = await c.post("/api/auth/register", { name: "G2", email: "gary@example.com", password: "long-enough", sport: "running" });
+  const dup = await c.post("/api/auth/register", { name: "G2", email: "gary@example.com", password: "long-enough", sports: ["running"] });
   assertEquals(dup.status, 409);
-  const weak = await c.post("/api/auth/register", { name: "G3", email: "g3@example.com", password: "short", sport: "running" });
+  const weak = await c.post("/api/auth/register", { name: "G3", email: "g3@example.com", password: "short", sports: ["running"] });
   assertEquals(weak.status, 400);
   assert(weak.json.fields.password);
-  const noSport = await c.post("/api/auth/register", { name: "G4", email: "g4@example.com", password: "long-enough", sport: "walking" });
-  assertEquals(noSport.status, 400);
-  assert(noSport.json.fields.sport);
+  for (const sports of [[], ["walking"], ["running", "running"], ["running", "cycling", "rowing", "swimming"]]) {
+    const r = await c.post("/api/auth/register", { name: "G4", email: "g4@example.com", password: "long-enough", sports });
+    assertEquals(r.status, 400, JSON.stringify(sports));
+    assert(Object.keys(r.json.fields).some((k) => k.startsWith("sports")), JSON.stringify(r.json));
+  }
 });
 
 Deno.test("password reset flow", async () => {
@@ -68,13 +70,17 @@ Deno.test("password reset flow", async () => {
 Deno.test("profile: update details and upload a photo", async () => {
   resetDb();
   const { client } = await registerUser("Gary");
-  const upd = await client.patch("/api/me", { name: "Turbo Gary", sport: "cycling", goal: 50, unit: "mi" });
+  const upd = await client.patch("/api/me", { name: "Turbo Gary", sports: ["cycling"], goal: 50, unit: "mi" });
   assertEquals(upd.status, 200);
   assertEquals(upd.json.name, "Turbo Gary");
-  // The goal is fixed by the sport; a submitted goal is ignored.
-  assertEquals(upd.json.goalM, 900_000);
-  assertEquals((await client.patch("/api/me", { sport: "rowing" })).json.goalM, 300_000);
-  assertEquals((await client.patch("/api/me", { sport: "walking" })).status, 400);
+  // The goal follows from the number of sports; a submitted goal is ignored.
+  assertEquals(upd.json.sports, ["cycling"]);
+  assertEquals(upd.json.goalPoints, 900);
+  assertEquals((await client.patch("/api/me", { sports: ["rowing", "cycling"] })).json.goalPoints, 1050);
+  assertEquals((await client.patch("/api/me", { sports: ["rowing", "cycling", "swimming"] })).json.goalPoints, 1200);
+  assertEquals((await client.patch("/api/me", { sports: ["running", "rowing", "cycling", "swimming"] })).status, 400);
+  assertEquals((await client.patch("/api/me", { sports: [] })).status, 400);
+  assertEquals((await client.get("/api/me")).json.sports, ["rowing", "cycling", "swimming"]);
 
   const form = new FormData();
   form.append("photo", new File([PNG_1PX], "me.png", { type: "image/png" }));
@@ -109,51 +115,83 @@ Deno.test("activity validation rejects negative, zero, huge and future entries",
   }
 });
 
-Deno.test("fixed sport goals: the race is ranked by share of each racer's goal", async () => {
+Deno.test("points: 1/4/3/12 points per km; the race is ranked by share of each racer's goal", async () => {
   resetDb();
-  const cyclist = await registerUser("Cyril", "cycling"); // 900 km goal
-  const rower = await registerUser("Rowena", "rowing"); // 300 km goal
-  const runner = await registerUser("Rita", "running"); // 225 km goal
-  const swimmer = await registerUser("Sam", "swimming"); // 75 km goal
-  await cyclist.client.post("/api/activities", { sport: "cycling", date: today(), distance: 90 }); // 10%
-  await rower.client.post("/api/activities", { sport: "rowing", date: today(), distance: 30 }); // 10%
-  await runner.client.post("/api/activities", { sport: "running", date: today(), distance: 45 }); // 20%
-  await swimmer.client.post("/api/activities", { sport: "swimming", date: today(), distance: 3 }); // 4%
-  // Other sports don't move your racer.
-  await runner.client.post("/api/activities", { sport: "cycling", date: today(), distance: 500 });
+  const cyclist = await registerUser("Cyril", "cycling"); // 1 pt/km, goal 900
+  const rower = await registerUser("Rowena", "rowing"); // 3 pts/km, goal 900
+  const runner = await registerUser("Rita", "running"); // 4 pts/km, goal 900
+  const swimmer = await registerUser("Sam", "swimming"); // 12 pts/km, goal 900
+  await cyclist.client.post("/api/activities", { sport: "cycling", date: today(), distance: 90 }); // 90 pts = 10%
+  await rower.client.post("/api/activities", { sport: "rowing", date: today(), distance: 30 }); // 90 pts = 10%
+  const run = await runner.client.post("/api/activities", { sport: "running", date: today(), distance: 45 }); // 180 pts = 20%
+  await swimmer.client.post("/api/activities", { sport: "swimming", date: today(), distance: 3 }); // 36 pts = 4%
+  assertEquals(run.json.points, 180);
+  // A sport you don't take part in doesn't count.
+  const ride = await runner.client.post("/api/activities", { sport: "cycling", date: today(), distance: 500 });
+  assertEquals(ride.json.excludedReason, "other_sport");
 
-  const races = await swimmer.client.get("/api/races");
-  const def = races.json.find((r: any) => r.isDefault);
+  const def = (await swimmer.client.get("/api/races")).json.find((r: any) => r.isDefault);
   const s = (await swimmer.client.get(`/api/races/${def.id}`)).json.standings;
   const byName = Object.fromEntries(s.map((x: any) => [x.user.name, x]));
   assertEquals(s[0].user.name, "Rita");
+  assertEquals(byName.Cyril.points, 90);
+  assertEquals(byName.Rowena.points, 90);
   assertEquals(byName.Cyril.progress, 0.1);
   assertEquals(byName.Rowena.progress, 0.1);
-  assertEquals(byName.Cyril.rank, byName.Rowena.rank, "same share of goal = same place");
+  assertEquals(byName.Cyril.rank, byName.Rowena.rank, "same points share = same place");
+  assertEquals(byName.Rita.points, 180);
   assertEquals(byName.Rita.progress, 0.2);
   assertEquals(byName.Rita.distanceM, 45000);
+  assertEquals(byName.Sam.points, 36);
   assertEquals(byName.Sam.progress, 0.04);
-  assertEquals(byName.Cyril.goalM, 900_000);
-  assertEquals(byName.Cyril.remainingM, 810_000);
+  assertEquals(byName.Cyril.goalPoints, 900);
+  assertEquals(byName.Cyril.remainingPoints, 810);
 
   const list = await runner.client.get("/api/activities");
-  const ride = list.json.activities.find((a: any) => a.sport === "cycling");
-  assertEquals(ride.excludedReason, "other_sport");
+  assertEquals(list.json.totalPoints, 180);
   assertEquals(list.json.totalM, 45000);
-
-  const dash = await rower.client.get("/api/dashboard");
-  assertEquals(dash.json.leader.user.name, "Rita");
-  assertEquals(dash.json.myStanding.progress, 0.1);
 });
 
-Deno.test("switching sport recalculates progress from that sport's activities", async () => {
+Deno.test("multi-sport racers: goal is 1050 for two sports and 1200 for three", async () => {
+  resetDb();
+  const duo = await registerUser("Duo", ["cycling", "running"]);
+  const trio = await registerUser("Trio", ["cycling", "running", "swimming"]);
+  for (const c of [duo.client, trio.client]) {
+    await c.post("/api/activities", { sport: "cycling", date: today(), distance: 105 }); // 105 pts
+    await c.post("/api/activities", { sport: "running", date: today(), distance: 52.5 }); // 210 pts
+    await c.post("/api/activities", { sport: "swimming", date: today(), distance: 2.5 }); // 30 pts (trio only)
+  }
+  const def = (await duo.client.get("/api/races")).json.find((r: any) => r.isDefault);
+  const s = (await duo.client.get(`/api/races/${def.id}`)).json.standings;
+  const byName = Object.fromEntries(s.map((x: any) => [x.user.name, x]));
+  assertEquals(byName.Duo.goalPoints, 1050);
+  assertEquals(byName.Duo.points, 315);
+  assertEquals(byName.Duo.progress, 315 / 1050);
+  assertEquals(byName.Trio.goalPoints, 1200);
+  assertEquals(byName.Trio.points, 345);
+  assertEquals(byName.Trio.progress, 345 / 1200);
+  assertEquals(byName.Trio.bySport.map((b: any) => [b.sport, b.points]), [["cycling", 105], ["running", 210], ["swimming", 30]]);
+
+  // Finishing: the day the points reach the goal.
+  await duo.client.post("/api/activities", { sport: "cycling", date: today(), distance: 735 });
+  const after = (await duo.client.get(`/api/races/${def.id}`)).json.standings[0];
+  assertEquals(after.user.name, "Duo");
+  assertEquals(after.progress, 1);
+  assertEquals(after.finishedOn, today());
+});
+
+Deno.test("changing sports recalculates progress from the new sports' activities", async () => {
   resetDb();
   const { client } = await registerUser("Flip", "running");
-  await client.post("/api/activities", { sport: "running", date: today(), distance: 22.5 });
-  await client.post("/api/activities", { sport: "swimming", date: today(), distance: 15 });
+  await client.post("/api/activities", { sport: "running", date: today(), distance: 22.5 }); // 90 pts
+  await client.post("/api/activities", { sport: "swimming", date: today(), distance: 15 }); // 180 pts
   assertEquals((await client.get("/api/dashboard")).json.myStanding.progress, 0.1);
-  await client.patch("/api/me", { sport: "swimming" });
+  await client.patch("/api/me", { sports: ["swimming"] });
   assertEquals((await client.get("/api/dashboard")).json.myStanding.progress, 0.2);
+  await client.patch("/api/me", { sports: ["running", "swimming"] });
+  const both = (await client.get("/api/dashboard")).json.myStanding;
+  assertEquals(both.points, 270);
+  assertEquals(both.progress, 270 / 1050);
 });
 
 Deno.test("users cannot edit or delete other users' activities or profiles", async () => {
@@ -201,10 +239,10 @@ Deno.test("custom race: invitations and date range", async () => {
 
   assertEquals((await b.client.post(`/api/races/${raceId}/join`)).json.myStatus, "joined");
 
-  await a.client.post("/api/activities", { sport: "running", date: daysAgo(5), distance: 45 }); // 20%, counts
+  await a.client.post("/api/activities", { sport: "running", date: daysAgo(5), distance: 45 }); // 180 pts = 20%, counts
   await a.client.post("/api/activities", { sport: "running", date: daysAgo(20), distance: 100 }); // before the race
   await b.client.post("/api/activities", { sport: "swimming", date: daysAgo(4), distance: 50 });
-  await b.client.post("/api/activities", { sport: "swimming", date: daysAgo(3), distance: 30 }); // crosses 75 km
+  await b.client.post("/api/activities", { sport: "swimming", date: daysAgo(3), distance: 30 }); // 960 pts: crosses 900
   await b.client.post("/api/activities", { sport: "swimming", date: daysAgo(0), distance: 30 }); // after the race
 
   const detail = await a.client.get(`/api/races/${raceId}`);

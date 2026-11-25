@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { SPORT_IDS } from "../../shared/sports.ts";
 import { config } from "../config.ts";
 import { nowSec, one, run, tx } from "../db.ts";
 import { hashPassword, randomToken, sha256, verifyPassword } from "../lib/crypto.ts";
@@ -10,7 +9,7 @@ import { clientIp, rateLimit } from "../lib/rateLimit.ts";
 import { createSession, destroyAllSessions, destroySession } from "../lib/session.ts";
 import type { UserRow } from "../lib/types.ts";
 import { joinDefaultRace } from "../services/races.ts";
-import { meResponse } from "./profile.ts";
+import { meResponse, sportsInput } from "./profile.ts";
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email address").max(254);
 const password = z
@@ -30,7 +29,7 @@ export const auth = new Hono<AppEnv>()
         name: z.string().trim().min(1, "Enter your name").max(40, "Name must be 40 characters or fewer"),
         email,
         password,
-        sport: z.enum(SPORT_IDS, { errorMap: () => ({ message: "Pick the sport you'll race in" }) }),
+        sports: sportsInput,
       }),
       await jsonBody(c),
     );
@@ -40,7 +39,7 @@ export const auth = new Hono<AppEnv>()
     const hash = await hashPassword(body.password);
     const userId = tx(() => {
       const id = Number(
-        run("INSERT INTO users (email, password_hash, name, sport) VALUES (?, ?, ?, ?)", body.email, hash, body.name, body.sport)
+        run("INSERT INTO users (email, password_hash, name, sports) VALUES (?, ?, ?, ?)", body.email, hash, body.name, body.sports.join(","))
           .lastInsertRowid,
       );
       joinDefaultRace(id);
@@ -81,8 +80,8 @@ export const auth = new Hono<AppEnv>()
       const link = `${config.appUrl}/reset-password?token=${encodeURIComponent(token)}`;
       await sendMail({
         to: user.email,
-        subject: "Reset your Snail Race password",
-        text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your Snail Race password.\n` +
+        subject: "Reset your Sky Race password",
+        text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your Sky Race password.\n` +
           `Open this link within one hour to choose a new one:\n\n${link}\n\n` +
           `If you didn't ask for this, you can ignore this email.`,
       });

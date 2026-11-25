@@ -44,9 +44,14 @@ export class TestClient {
   del = (p: string) => this.req("DELETE", p);
 }
 
-export async function registerUser(name: string, sport = "running", email = `${name.toLowerCase()}@example.com`) {
+export async function registerUser(name: string, sports: string | string[] = "running", email = `${name.toLowerCase()}@example.com`) {
   const c = new TestClient();
-  const r = await c.post("/api/auth/register", { name, email, password: "slow-and-steady", sport });
+  const r = await c.post("/api/auth/register", {
+    name,
+    email,
+    password: "slow-and-steady",
+    sports: Array.isArray(sports) ? sports : [sports],
+  });
   if (r.status !== 201) throw new Error(`register failed: ${JSON.stringify(r.json)}`);
   return { client: c, user: r.json };
 }

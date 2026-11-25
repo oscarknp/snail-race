@@ -32,7 +32,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     /* non-JSON error page */
   }
   if (!res.ok) {
-    if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("snail:unauthorized"));
+    if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("app:unauthorized"));
     throw new ApiError(data?.error ?? `Request failed (${res.status})`, res.status, data?.fields ?? {});
   }
   return data as T;
@@ -43,9 +43,10 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 export interface PublicUser {
   id: number;
   name: string;
-  sport: Sport | null;
-  /** Fixed by the sport. */
-  goalM: number | null;
+  /** 1-3 race sports, in the order chosen. */
+  sports: Sport[];
+  /** Points needed to finish: 900 / 1050 / 1200 for 1 / 2 / 3 sports. */
+  goalPoints: number | null;
   unit: Unit;
   photoUrl: string | null;
 }
@@ -66,6 +67,8 @@ export interface Activity {
   name: string | null;
   date: string;
   distanceM: number;
+  /** Points at the sport's rate (counted or not). */
+  points: number;
   movingTimeS: number | null;
   notes: string | null;
   counts: boolean;
@@ -80,11 +83,14 @@ export interface Activity {
 export interface Standing {
   rank: number;
   user: PublicUser;
-  distanceM: number;
-  goalM: number | null;
-  /** Share of the racer's own sport goal (0..1); this is their position on the track. */
+  points: number;
+  goalPoints: number | null;
+  /** Share of the racer's own points goal (0..1); this is their position on the track. */
   progress: number;
-  remainingM: number | null;
+  remainingPoints: number | null;
+  /** Counted distance across all of their sports. */
+  distanceM: number;
+  bySport: { sport: Sport; distanceM: number; points: number }[];
   finishedOn: string | null;
   activityCount: number;
   lastActivityOn: string | null;

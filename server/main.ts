@@ -41,7 +41,7 @@ setInterval(purgeExpiredSessions, 60 * 60_000);
 startStravaScheduler();
 
 Deno.serve({ port: config.port, onListen: ({ port }) => {
-  console.log(`🐌 Snail Race API listening on http://localhost:${port}`);
+  console.log(`✈️  Sky Race API listening on http://localhost:${port}`);
   console.log(`   App URL: ${config.appUrl}`);
   console.log(`   Strava: ${stravaConfigured() ? "configured" : "not configured (manual tracking only)"}`);
 } }, createApp().fetch);

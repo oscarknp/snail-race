@@ -1,15 +1,16 @@
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { OTHER_SPORT, SPORTS, sportLabel, sportTargetM } from "../../../shared/sports.ts";
+import { goalPoints, OTHER_SPORT, SPORTS, sportLabel } from "../../../shared/sports.ts";
 import type { Unit } from "../../../shared/units.ts";
 import { CameraDialog, canUseLiveCamera } from "../components/CameraCapture.tsx";
-import { SnailPortrait } from "../components/Snail.tsx";
-import { SportPicker } from "./Auth.tsx";
+import { RacerPortrait } from "../components/Racer.tsx";
+import { SportPicker, sportsError } from "./Auth.tsx";
 import { ConfirmDialog, ErrorBox, Field, Loading, useToast } from "../components/ui.tsx";
 import { api, ApiError, type Me, notifyDataChanged } from "../lib/api.ts";
 import { useAuth, useMe } from "../lib/auth.tsx";
-import { dist, formatDateTime, timeAgo } from "../lib/format.ts";
+import { formatDateTime, timeAgo } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { type ThemePreference, useTheme } from "../lib/theme.tsx";
 
 export function Profile() {
   const [params] = useSearchParams();
@@ -27,11 +28,12 @@ export function Profile() {
       {params.get("welcome") && (
         <div className="notice ok" style={{ marginBottom: 20 }}>
           <span aria-hidden="true">🎉</span>
-          <div><strong>Welcome to the race!</strong> Upload or take a photo to race as yourself, and check your sport and its distance goal.</div>
+          <div><strong>Welcome to the race!</strong> Upload or take a photo to race as yourself, and check your race sports.</div>
         </div>
       )}
       <div className="stack" style={{ gap: 20 }}>
         <RacerCard />
+        <AppearanceCard />
         <TrackingSettings />
       </div>
     </main>
@@ -67,7 +69,7 @@ function RacerCard() {
   const captureRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState(false);
   const [name, setName] = useState(me.name);
-  const [sport, setSport] = useState<string>(me.sport ?? "");
+  const [sports, setSports] = useState<string[]>(me.sports);
   const [unit, setUnit] = useState<Unit>(me.unit);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -78,12 +80,12 @@ function RacerCard() {
     e.preventDefault();
     setErrors({});
     if (!name.trim()) return setErrors({ name: "Enter a display name" });
-    if (!sport) return setErrors({ sport: "Pick the sport you'll race in" });
+    if (!sports.length) return setErrors({ sports: "Pick at least one sport" });
     setBusy(true);
     try {
       const updated = await api<Me>("/me", {
         method: "PATCH",
-        body: { name, sport, unit },
+        body: { name, sports, unit },
       });
       setMe(updated);
       notifyDataChanged();
@@ -143,7 +145,7 @@ function RacerCard() {
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="stack">
           <div className="photo-edit">
-            <SnailPortrait user={{ ...me, name: name || me.name }} size={190} />
+            <RacerPortrait user={{ ...me, name: name || me.name }} size={190} />
             <div className="stack" style={{ gap: 8 }}>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" id="photo-input" tabIndex={-1} onChange={onPhoto} />
               <input ref={captureRef} type="file" accept="image/*" capture="user" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={onPhoto} />
@@ -168,23 +170,26 @@ function RacerCard() {
         </div>
         <form className="form" onSubmit={save} noValidate>
           {errors._ && <div className="form-error" role="alert">{errors._}</div>}
-          <Field label="Display name" id="p-name" error={errors.name} hint="Shown next to your snail">
+          <Field label="Display name" id="p-name" error={errors.name} hint="Shown next to your plane">
             <input id="p-name" className="input" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <SportPicker value={sport} onChange={setSport} error={errors.sport} />
-          {me.sport && sport !== me.sport && (
+          <SportPicker value={sports} onChange={setSports} error={sportsError(errors)} />
+          {me.sports.length > 0 && sports.join() !== me.sports.join() && sports.length > 0 && (
             <div className="notice" role="status">
               <span aria-hidden="true">🔁</span>
-              <div>Switching to {sportLabel(sport).toLowerCase()} recalculates your progress: only your {sportLabel(sport).toLowerCase()} activities will count.</div>
+              <div>
+                Changing sports recalculates your progress: only {sports.map((sp) => sportLabel(sp).toLowerCase()).join(", ")} activities
+                will count, toward a goal of {goalPoints(sports)?.toLocaleString()} points.
+              </div>
             </div>
           )}
           <div className="form-row">
             <div className="field">
-              <span className="label">Distance goal</span>
-              <div className="input" aria-readonly="true" style={{ background: "var(--cream)", display: "flex", alignItems: "center" }}>
-                {sport ? dist(sportTargetM(sport)!, unit, 0) : "Pick a sport"}
+              <span className="label">Points goal</span>
+              <div className="input" aria-readonly="true" style={{ background: "var(--cloud)", display: "flex", alignItems: "center" }}>
+                {sports.length ? `${goalPoints(sports)!.toLocaleString()} points` : "Pick a sport"}
               </div>
-              <span className="hint">Fixed for {sport ? sportLabel(sport).toLowerCase() : "each sport"}</span>
+              <span className="hint">Set by the number of sports you take part in</span>
             </div>
             <Field label="Preferred unit" id="p-unit">
               <select id="p-unit" className="input" value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
@@ -197,6 +202,29 @@ function RacerCard() {
           <button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save profile"}</button>
         </form>
       </div>
+    </section>
+  );
+}
+
+/** Light/dark preference for this device. "Auto" follows the operating system. */
+function AppearanceCard() {
+  const { preference, theme, setPreference } = useTheme();
+  const options: [ThemePreference, string][] = [["system", "🖥️ Auto"], ["light", "☀️ Day"], ["dark", "🌙 Night"]];
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Appearance</h2>
+        <div className="segmented" role="group" aria-label="Colour theme">
+          {options.map(([value, label]) => (
+            <button key={value} type="button" aria-pressed={preference === value} onClick={() => setPreference(value)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <p className="faint" style={{ margin: 0 }}>
+        {preference === "system"
+          ? `Following your device: currently ${theme === "dark" ? "night" : "day"} mode.`
+          : "Saved on this device. The moon/sun button in the header switches quickly."}
+      </p>
     </section>
   );
 }
@@ -408,8 +436,9 @@ function TrackingSettings() {
           <div className="notice info">
             <span aria-hidden="true">🎽</span>
             <div>
-              Only imported <strong>{me.sport ? sportLabel(me.sport).toLowerCase() : "race-sport"}</strong> activities dated within a race's
-              start and end dates move your racer in that race. Everything else stays visible in your history. Change your sport under “Your racer” above.
+              Only imported activities in your race sports (<strong>{me.sports.length ? me.sports.map((sp) => sportLabel(sp).toLowerCase()).join(", ") : "none chosen yet"}</strong>)
+              dated within a race's start and end dates earn points in that race. Everything else stays visible in your history.
+              Change your sports under “Your racer” above.
             </div>
           </div>
 
@@ -489,7 +518,7 @@ function TrackingSettings() {
               toast("Strava disconnected");
             })}
         >
-          <p>We'll revoke Snail Race's access on Strava and forget your Strava tokens. New activities won't be imported.</p>
+          <p>We'll revoke Sky Race's access on Strava and forget your Strava tokens. New activities won't be imported.</p>
           <label className="checkbox">
             <input type="checkbox" checked={deleteImported} onChange={(e) => setDeleteImported(e.target.checked)} />
             <span>Also delete my {conn?.importedCount ?? 0} imported Strava activities (recommended). Manual entries are kept.</span>

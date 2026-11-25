@@ -6,6 +6,7 @@ import { ActivityDialogProvider } from "./components/ActivityForm.tsx";
 import { Layout } from "./components/Layout.tsx";
 import { Loading, ToastProvider } from "./components/ui.tsx";
 import { AuthProvider, useAuth } from "./lib/auth.tsx";
+import { ThemeProvider } from "./lib/theme.tsx";
 import { Activities } from "./pages/Activities.tsx";
 import { ForgotPassword, Login, Register, ResetPassword } from "./pages/Auth.tsx";
 import { Dashboard } from "./pages/Dashboard.tsx";
@@ -20,14 +21,14 @@ import { Races } from "./pages/Races.tsx";
 function Private({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <Loading label="Waking up the snails…" />;
+  if (loading) return <Loading label="Warming up the engines…" />;
   if (!me) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <ActivityDialogProvider>{children}</ActivityDialogProvider>;
 }
 
 function Home() {
   const { me, loading } = useAuth();
-  if (loading) return <Loading label="Waking up the snails…" />;
+  if (loading) return <Loading label="Warming up the engines…" />;
   // The race is the first thing a logged-in racer sees.
   return me ? <Private><RacePage /></Private> : <Landing />;
 }
@@ -41,27 +42,29 @@ function GuestOnly({ children }: { children: ReactNode }) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="login" element={<GuestOnly><Login /></GuestOnly>} />
-              <Route path="register" element={<GuestOnly><Register /></GuestOnly>} />
-              <Route path="forgot-password" element={<ForgotPassword />} />
-              <Route path="reset-password" element={<ResetPassword />} />
-              <Route path="dashboard" element={<Private><Dashboard /></Private>} />
-              <Route path="activities" element={<Private><Activities /></Private>} />
-              <Route path="leaderboard" element={<Private><Leaderboard /></Private>} />
-              <Route path="races" element={<Private><Races /></Private>} />
-              <Route path="races/:id" element={<Private><RacePage /></Private>} />
-              <Route path="profile" element={<Private><Profile /></Private>} />
-              <Route path="people/:id" element={<Private><Person /></Private>} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="login" element={<GuestOnly><Login /></GuestOnly>} />
+                <Route path="register" element={<GuestOnly><Register /></GuestOnly>} />
+                <Route path="forgot-password" element={<ForgotPassword />} />
+                <Route path="reset-password" element={<ResetPassword />} />
+                <Route path="dashboard" element={<Private><Dashboard /></Private>} />
+                <Route path="activities" element={<Private><Activities /></Private>} />
+                <Route path="leaderboard" element={<Private><Leaderboard /></Private>} />
+                <Route path="races" element={<Private><Races /></Private>} />
+                <Route path="races/:id" element={<Private><RacePage /></Private>} />
+                <Route path="profile" element={<Private><Profile /></Private>} />
+                <Route path="people/:id" element={<Private><Person /></Private>} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );

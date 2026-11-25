@@ -1,29 +1,37 @@
-# 🐌 Snail Race
+# ✈️ Sky Race
 
-A full-stack fitness tracker that turns everyday exercise into a friendly snail race. Every racer starts as a
-cartoon snail; upload a profile photo and that photo becomes your racer instead. Pick one of four sports, log distance by
-hand or sync it from Strava, and your racer slides along a winding garden track toward 100% of your sport's goal.
+A full-stack fitness tracker that turns everyday exercise into a friendly air race. Every racer flies a cartoon
+propeller plane in their own colour; upload a profile photo and it becomes a pilot badge instead. Pick up to three
+sports, log distance by hand or sync it from Strava, earn points for every kilometre, and fly along a route across the
+sky from the takeoff runway toward your points goal.
 
-| Sport | Fixed goal |
+| Sport | Points per km | km for 900 points |
+|---|---|---|
+| 🚴 Cycling | 1 | 900 km |
+| 🚣 Rowing | 3 | 300 km |
+| 🏃 Running | 4 | 225 km |
+| 🏊 Swimming | 12 | 75 km |
+
+| Sports you race in | Points goal |
 |---|---|
-| 🚴 Cycling | 900 km |
-| 🏃 Running | 225 km |
-| 🚣 Rowing | 300 km |
-| 🏊 Swimming | 75 km |
+| 1 | 900 |
+| 2 | 1,050 |
+| 3 (maximum) | 1,200 |
 
-Because everyone races to 100% of their own goal, the track shows **percentages**, not raw distance: 90 km of cycling
-and 30 km of rowing are both 10%, so those two racers stand side by side.
+Because goals differ, the track shows each racer's **percentage of their own goal**: 90 km of cycling (90 points) and
+30 km of rowing (90 points) are both 10% for single-sport racers, so they stand side by side. A three-sport racer
+with 600 of 1,200 points sits at 50%, level with a one-sport racer at 450 of 900.
 
 ## Features
 
 - **Accounts**: register, log in and out, reset a forgotten password by email. Sessions use httpOnly cookies.
-- **Profiles**: display name, photo uploaded or taken with the device camera (live viewfinder on https/localhost, the phone's camera app elsewhere; cropped to a square in the browser, EXIF and GPS data stripped), race sport (one of the four; its goal is fixed and can't be edited), km or miles for display.
-- **Racers**: without a photo you race as a cartoon snail in your own shell colour. With a photo, a round photo token in that colour replaces the snail on the track and on every profile view.
-- **The race**: a large animated SVG track with a start line, finish flag, 25/50/75% markers, a crown for the leader, name tags and a slime trail for you. Racers glide forward when their share of their goal changes. Wide screens get a garden loop and phones get a switchback course.
-- **Activities**: log sport, date, distance and notes. Only your race sport counts; other sports stay in your history. Edit or delete your own entries. Negative, zero, absurd and future entries are rejected on both client and server.
-- **Leaderboard**: ranked by share of each racer's goal, with sport, distance, goal and distance to go.
-- **Races**: everyone joins the default Grand Prix. Create races with a name and start and end dates, then invite people. Everyone races to 100% of their own sport goal using activities inside the dates. Invitees can join or decline. Completed races show a podium.
-- **Dashboard**: your racer, total distance, race position, progress to your sport goal, recent activities, invitations and sync problems.
+- **Profiles**: display name, photo uploaded or taken with the device camera (live viewfinder on https/localhost, the phone's camera app elsewhere; cropped to a square in the browser, EXIF and GPS data stripped), 1-3 race sports (the points goal follows from how many; it can't be edited), km or miles for display.
+- **Racers**: without a photo you fly a cartoon propeller plane in your own colour, which turns to face its direction of flight. With a photo, a round badge with pilot wings replaces the plane on the route and on every profile view.
+- **The race**: a large animated sky scene with a dotted flight route, a takeoff runway, waypoints at 25/50/75%, a landing runway with control tower and windsock, gold pilot wings for the leader, name tags and a contrail behind your own plane. Planes glide forward (propellers spinning) when their share of their points goal changes. Wide screens get a looping route and phones a switchback.
+- **Activities**: log sport, date, distance and notes. Each activity shows the points it earned. Only your race sports count; other sports stay in your history. Edit or delete your own entries. Negative, zero, absurd and future entries are rejected on both client and server.
+- **Leaderboard**: ranked by share of each racer's points goal, with sports, points, goal, points to go and distance.
+- **Races**: everyone joins the default race (the Grand Sky Rally). Create races with a name and start and end dates, then invite people. Everyone races to their own points goal using activities inside the dates. Invitees can join or decline. Completed races show a podium.
+- **Dashboard**: your racer, points and distance, race position, progress to your points goal with a per-sport breakdown, recent activities, invitations and sync problems.
 - **Strava (optional)**: OAuth connect, encrypted tokens, automatic import, webhooks plus scheduled fallback sync, "Sync now", Strava-type to race-sport mapping review, import history, duplicate handling, and disconnect with data deletion.
 
 ## Stack
@@ -87,7 +95,7 @@ Every option is documented in [.env.example](.env.example). The ones that matter
 ### 1. Create a Strava API application
 
 1. Go to https://www.strava.com/settings/api and create an app.
-2. Set **Authorization Callback Domain** to the host of `APP_URL` (`localhost` for local development, `snails.example.com` in production).
+2. Set **Authorization Callback Domain** to the host of `APP_URL` (`localhost` for local development, `race.example.com` in production).
 3. Put the **Client ID** and **Client Secret** in `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`. They stay on the server and never reach the browser.
 
 Users then click **Connect with Strava** under *Profile → Activity tracking integrations*. They approve access on Strava's own site, so the app never sees their Strava password.
@@ -118,24 +126,24 @@ Strava allows one subscription per application. Without webhooks the app still w
 
 ### Sports and counting rules
 
-The four sports and their goals live in [shared/sports.ts](shared/sports.ts). Strava `sport_type` values (falling back to the legacy `type`) map to them in
+The four sports, their points per km and the goals live in [shared/sports.ts](shared/sports.ts). Strava `sport_type` values (falling back to the legacy `type`) map to them in
 [server/integrations/strava/sportMap.ts](server/integrations/strava/sportMap.ts): `Run`, `TrailRun` and `VirtualRun` count as Running; `Ride`, `GravelRide`, `MountainBikeRide`, `VirtualRide` and e-bike types as Cycling; `Rowing` and `VirtualRow` as Rowing; `Swim` as Swimming.
 Any other type (walks, hikes, yoga…) is stored as *Not raced* and never counts. Users can remap any type, and already-imported activities are re-categorised immediately.
 
 All counting goes through [server/services/counting.ts](server/services/counting.ts). An activity counts toward a race when all of these hold:
 
 1. It belongs to the participant, and its date falls inside the race's start and end dates (both days included). For Strava activities the date is the athlete's local start date (`start_date_local`), so an activity at 23:30 on 30 September is September even if it was already 1 October in UTC. Earlier imported history stays in the activity list, marked *outside the dates of your races*.
-2. Its sport is the participant's race sport. Switching sport recalculates progress from the new sport's activities.
+2. Its sport is one of the participant's race sports (1-3). Changing sports recalculates progress from the new sports' activities and goal.
 3. Its source matches the user's tracking method: **Manual**, **Strava**, or **Both**.
 4. For imported activities: the user consented to share Strava totals.
 5. With **Both**, a manual entry with the same date, the same sport, and a distance within 3% (minimum 50 m) of a counted Strava activity is treated as the same workout. Only the Strava copy counts. The user can mark it as *separate workout* to override.
 
-A racer's position is `counted distance ÷ sport goal`, capped at 100%. The first to reach 100% wins, and finishers rank by the date they crossed. Standings are computed from the saved activities on every request, so edits, deletions and sport changes are reflected immediately.
+Each counted activity earns `km × points per km`. A racer's position is `points ÷ points goal`, capped at 100%. The first to reach their goal wins, and finishers rank by the date they crossed. Standings are computed from the saved activities on every request, so edits, deletions and sport changes are reflected immediately.
 
 ### ⚠️ Strava API Agreement
 
 Strava's [API Agreement](https://www.strava.com/legal/api) says Strava data provided by a user may only be shown to that user, unless they give explicit consent.
-Snail Race handles this as follows:
+Sky Race handles this as follows:
 
 - Connecting requires an explicit opt-in: *"my Strava distance totals are shown to people in my races."* Users can withdraw it at any time, and their Strava distance then stops counting.
 - Other people only ever see **aggregate totals**. Individual Strava activities (names, dates, times) are visible only to their owner.
@@ -166,10 +174,10 @@ The app is one process with two pieces of persistent state, the SQLite file and 
 ```bash
 docker build -t snail-race .
 docker run -d -p 8000:8000 -v snail-data:/data \
-  -e APP_URL=https://snails.example.com \
+  -e APP_URL=https://race.example.com \
   -e TOKEN_ENCRYPTION_KEY=... \
   -e TRUST_PROXY=true \
-  -e SMTP_HOST=... -e SMTP_USER=... -e SMTP_PASS=... -e MAIL_FROM="Snail Race <hi@example.com>" \
+  -e SMTP_HOST=... -e SMTP_USER=... -e SMTP_PASS=... -e MAIL_FROM="Sky Race <hi@example.com>" \
   -e STRAVA_CLIENT_ID=... -e STRAVA_CLIENT_SECRET=... -e STRAVA_WEBHOOK_VERIFY_TOKEN=... \
   snail-race
 ```
@@ -205,10 +213,10 @@ server/
   integrations/strava/      client (HTTP), service (OAuth, tokens, sync, webhooks), sport map
   scripts/                  seed data, webhook subscription management
   tests/                    API + Strava tests (fake Strava client)
-shared/                     the four sports and their goals + unit conversion, used by both sides
+shared/                     sports, points per km and goals + unit conversion, used by both sides
 web/src/
   components/RaceTrack.tsx  the animated race track
-  components/Snail.tsx      the snail drawing
+  components/Racer.tsx      the plane and pilot-badge drawings
   pages/                    one file per screen
 ```
 
@@ -222,7 +230,7 @@ web/src/
 
 ## Data model
 
-`users`, `sessions`, `password_resets`, `activities` (distance always in **meters**), `races`, `race_participants` (invited, joined or declined), `integration_connections` (encrypted tokens, sync cursor, status), `oauth_states`, `user_sport_mapping`, `sync_logs`. A user's goal isn't stored: it's derived from their sport. Migrations live in [server/db.ts](server/db.ts) and run on startup.
+`users`, `sessions`, `password_resets`, `activities` (distance always in **meters**), `races`, `race_participants` (invited, joined or declined), `integration_connections` (encrypted tokens, sync cursor, status), `oauth_states`, `user_sport_mapping`, `sync_logs`. A user's sports are stored on `users.sports`; their points goal isn't stored, it's derived from how many they have. Migrations live in [server/db.ts](server/db.ts) and run on startup.
 
 ## Known limitations
 

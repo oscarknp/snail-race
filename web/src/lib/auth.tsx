@@ -34,8 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
     // A 401 anywhere means the session ended (expired, or reset elsewhere).
     const onUnauthorized = () => setMe(null);
-    window.addEventListener("snail:unauthorized", onUnauthorized);
-    return () => window.removeEventListener("snail:unauthorized", onUnauthorized);
+    window.addEventListener("app:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("app:unauthorized", onUnauthorized);
   }, [refresh]);
 
   return <AuthContext.Provider value={{ me, loading, setMe, refresh, logout }}>{children}</AuthContext.Provider>;

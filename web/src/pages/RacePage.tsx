@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { formatPoints } from "../../../shared/sports.ts";
 import { LogButton } from "../components/ActivityForm.tsx";
 import { RaceTrack, StandingsList } from "../components/RaceTrack.tsx";
 import { ConfirmDialog, ErrorBox, Loading, useToast } from "../components/ui.tsx";
 import { InviteDialog } from "./Races.tsx";
 import { api, ApiError, notifyDataChanged, type Race, type RaceDetail } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
-import { dist, formatDate, pct } from "../lib/format.ts";
+import { formatDate, pct } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
 
 export function RacePage() {
@@ -36,7 +37,7 @@ export function RacePage() {
 
   if (races.error) return <main className="page container"><ErrorBox message={races.error} onRetry={races.reload} /></main>;
   if (detail.error) return <main className="page container"><ErrorBox message={detail.error} onRetry={detail.reload} /></main>;
-  if (!detail.data) return <main className="page container"><Loading label="Lining up the snails…" /></main>;
+  if (!detail.data) return <main className="page container"><Loading label="Lining up on the runway…" /></main>;
 
   const { race, standings } = detail.data;
   const leader = standings[0];
@@ -50,7 +51,7 @@ export function RacePage() {
           <div>
             <h1>{race.name}</h1>
             <div className="row small muted" style={{ marginTop: 4 }}>
-              <span>🏁 First to 100% of their sport's goal wins</span>
+              <span>🏁 First to their points goal wins</span>
               <span>· {formatDate(race.startDate)} → {race.endDate ? formatDate(race.endDate) : "no end date"}</span>
               <span className={`badge ${race.status === "active" ? "badge-ok" : race.status === "upcoming" ? "badge-warn" : "badge-off"}`}>{race.status}</span>
             </div>
@@ -79,7 +80,7 @@ export function RacePage() {
             <div className="spread" style={{ flex: 1 }}>
               <span>You've been invited to this race.</span>
               <div className="row">
-                <button className="btn btn-primary btn-sm" onClick={() => act("join", "You're in! Slime responsibly.")}>Join race</button>
+                <button className="btn btn-primary btn-sm" onClick={() => act("join", "You're in! Cleared for takeoff.")}>Join race</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => act("decline", "Invitation declined")}>Decline</button>
               </div>
             </div>
@@ -87,7 +88,7 @@ export function RacePage() {
         )}
         {race.isDefault && race.myStatus !== "joined" && (
           <div className="notice info" style={{ margin: "0 20px 12px" }}>
-            <span aria-hidden="true">🐌</span>
+            <span aria-hidden="true">✈️</span>
             <div className="spread" style={{ flex: 1 }}>
               <span>You're not in this race right now.</span>
               <button className="btn btn-primary btn-sm" onClick={() => act("join", "Back on the track!")}>Join race</button>
@@ -102,7 +103,9 @@ export function RacePage() {
                 <span className="crown" aria-hidden="true">👑</span>
                 <span>
                   <strong>{leader.user.id === me.id ? "You are" : `${leader.user.name} is`}</strong>{" "}
-                  {leader.finishedOn ? "the champion!" : `leading at ${pct(leader.progress)} of their goal`}
+                  {leader.finishedOn
+                    ? "the champion!"
+                    : `leading at ${pct(leader.progress)} of ${leader.user.id === me.id ? "your" : "their"} goal (${formatPoints(leader.points)} of ${leader.goalPoints?.toLocaleString()})`}
                 </span>
                 {mine && mine.user.id !== leader.user.id && (
                   <span className="muted">· You're {pct(leader.progress - mine.progress)} behind</span>
@@ -111,9 +114,9 @@ export function RacePage() {
                   <span className="muted">
                     · {mine.finishedOn
                       ? "You finished! 🎉"
-                      : mine.remainingM !== null
-                      ? `${dist(mine.remainingM, me.unit)} to your finish`
-                      : "Pick your sport in your profile to start moving"}
+                      : mine.remainingPoints !== null
+                      ? `${formatPoints(mine.remainingPoints)} to your finish`
+                      : "Pick your sports in your profile to start moving"}
                   </span>
                 )}
               </>
@@ -133,7 +136,7 @@ export function RacePage() {
             <button className="btn btn-ghost btn-sm" onClick={() => act("leave", "You left the race")}>Leave race</button>
           )}
           {race.isDefault && race.myStatus === "joined" && (
-            <button className="btn btn-ghost btn-sm" onClick={() => act("leave", "You left the Grand Prix. Come back any time!")}>Leave race</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => act("leave", "You left the Sky Rally. Come back any time!")}>Leave race</button>
           )}
           {race.isOwner && !race.isDefault && (
             <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(true)}>Delete race</button>

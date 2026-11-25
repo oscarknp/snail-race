@@ -37,8 +37,8 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-/** A stable, cheerful shell colour per racer. */
-const SHELLS = [
+/** A stable, cheerful colour per racer (plane paint or badge ring). */
+const RACER_COLORS = [
   ["#ff8a5b", "#b8461f"],
   ["#ffc145", "#a8730a"],
   ["#7cc6fe", "#2f6f9f"],
@@ -51,8 +51,8 @@ const SHELLS = [
   ["#8fa8ff", "#3c55b0"],
 ];
 
-export function shellColors(id: number): { fill: string; stroke: string } {
-  const [fill, stroke] = SHELLS[(id * 7) % SHELLS.length];
+export function racerColors(id: number): { fill: string; stroke: string } {
+  const [fill, stroke] = RACER_COLORS[(id * 7) % RACER_COLORS.length];
   return { fill, stroke };
 }
 

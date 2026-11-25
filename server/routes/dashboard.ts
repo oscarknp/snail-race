@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { one } from "../db.ts";
 import { type AppEnv, currentUser, HttpError, requireAuth } from "../lib/http.ts";
 import type { RaceRow } from "../lib/types.ts";
-import { countedTotal } from "../services/counting.ts";
+import { countedPoints, countedTotal } from "../services/counting.ts";
 import { canViewRace, ensureDefaultRace, raceStandings, raceSummary } from "../services/races.ts";
 import { activityResponse, evaluatedActivitiesFor } from "./activities.ts";
 import { meResponse } from "./profile.ts";
@@ -22,6 +22,7 @@ export const dashboard = new Hono<AppEnv>()
     return c.json({
       me: meResponse(user),
       totalM: countedTotal(evaluated),
+      totalPoints: countedPoints(evaluated),
       activityCount: evaluated.length,
       race: raceSummary(race, user.id),
       myStanding: standings.find((s) => s.user.id === user.id) ?? null,
