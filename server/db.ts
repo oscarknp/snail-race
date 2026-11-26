@@ -198,6 +198,19 @@ const MIGRATIONS: string[] = [
       WHERE m.user_id = activities.user_id AND m.provider = 'strava' AND m.source_type = activities.source_sport_type
     );
   `,
+  // v6: the welcome race becomes Drrrrrrrrastic Decemberrrrrrr, 1-25 December 2026 (replacing
+  // the Grand Sky Rally). It's a fresh event, so every racer is in it again; anyone can leave.
+  `
+  UPDATE races SET
+    name = 'Drrrrrrrrastic Decemberrrrrrr',
+    description = 'The everyone-welcome air race, 1 to 25 December. Every pilot takes off here.',
+    start_date = '2026-12-01',
+    end_date = '2026-12-25'
+  WHERE is_default = 1;
+  INSERT INTO race_participants (race_id, user_id, status)
+    SELECT r.id, u.id, 'joined' FROM races r CROSS JOIN users u WHERE r.is_default = 1
+  ON CONFLICT (race_id, user_id) DO UPDATE SET status = 'joined';
+  `,
 ];
 
 let db: DatabaseSync | null = null;

@@ -138,7 +138,7 @@ export function RacePage() {
             <button className="btn btn-ghost btn-sm" onClick={() => act("leave", "You left the race")}>Leave race</button>
           )}
           {race.isDefault && race.myStatus === "joined" && (
-            <button className="btn btn-ghost btn-sm" onClick={() => act("leave", "You left the Sky Rally. Come back any time!")}>Leave race</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => act("leave", `You left ${race.name}. Come back any time!`)}>Leave race</button>
           )}
           {race.isOwner && !race.isDefault && (
             <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(true)}>Delete race</button>

@@ -83,7 +83,7 @@ export function Landing() {
         </div>
         <div className="card feature">
           <span className="icon" aria-hidden="true">🏁</span>
-          <div><h3>Race your people</h3><p className="muted">Everyone joins the Sky Rally. Start your own races with friends, dates and a finish line.</p></div>
+          <div><h3>Race your people</h3><p className="muted">Everyone joins the welcome race. Start your own races with friends, dates and a finish line.</p></div>
         </div>
       </section>
     </main>

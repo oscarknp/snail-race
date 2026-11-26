@@ -34,7 +34,7 @@ export function Races() {
       <div className="page-head">
         <div>
           <h1>Races &amp; challenges</h1>
-          <p>Everyone flies in the Sky Rally. Start your own race to challenge friends on your own terms.</p>
+          <p>Everyone flies in the welcome race. Start your own race to challenge friends on your own terms.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Create a race</button>
       </div>

@@ -38,5 +38,5 @@
   <Config Name="SMTP_USER" Target="SMTP_USER" Default="" Mode="" Description="Mail server username." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="SMTP_PASS" Target="SMTP_PASS" Default="" Mode="" Description="Mail server password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="MAIL_FROM" Target="MAIL_FROM" Default="Sky Race &lt;no-reply@example.com&gt;" Mode="" Description="Sender shown on emails." Type="Variable" Display="advanced" Required="false" Mask="false">Sky Race &lt;no-reply@example.com&gt;</Config>
-  <Config Name="DEFAULT_RACE_NAME" Target="DEFAULT_RACE_NAME" Default="The Grand Sky Rally" Mode="" Description="Name of the race everyone joins." Type="Variable" Display="advanced" Required="false" Mask="false">The Grand Sky Rally</Config>
+  <Config Name="DEFAULT_RACE_NAME" Target="DEFAULT_RACE_NAME" Default="Drrrrrrrrastic Decemberrrrrrr" Mode="" Description="Name of the welcome race everyone joins (only used on a fresh install)." Type="Variable" Display="advanced" Required="false" Mask="false">Drrrrrrrrastic Decemberrrrrrr</Config>
 </Container>

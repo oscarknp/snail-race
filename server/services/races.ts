@@ -15,14 +15,17 @@ export function raceStatus(race: RaceRow, on = today()): RaceStatus {
   return "active";
 }
 
+const WELCOME_RACE_DESCRIPTION = "The everyone-welcome air race. Every pilot takes off here.";
+
 export function ensureDefaultRace(): RaceRow {
   const existing = one<RaceRow>("SELECT * FROM races WHERE is_default = 1");
   if (existing) return existing;
   run(
-    `INSERT INTO races (name, description, start_date, is_default) VALUES (?, ?, ?, 1)`,
+    `INSERT INTO races (name, description, start_date, end_date, is_default) VALUES (?, ?, ?, ?, 1)`,
     config.defaultRace.name,
-    "The everyone-welcome air race. Every pilot takes off here.",
-    today().slice(0, 8) + "01", // from the first of this month
+    WELCOME_RACE_DESCRIPTION,
+    config.defaultRace.startDate,
+    config.defaultRace.endDate,
   );
   return one<RaceRow>("SELECT * FROM races WHERE is_default = 1")!;
 }

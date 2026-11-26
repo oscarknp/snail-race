@@ -337,7 +337,7 @@ Deno.test("race dates: Strava activities only count inside the event period (inc
   const { client } = await registerUser("Shelly", "running");
   await connect(client);
   const race = await client.post("/api/races", { name: "October", startDate: start, endDate: end });
-  // Leave the always-open Grand Prix so only this race's dates apply to the activity list.
+  // Leave the welcome race so only this race's dates apply to the activity list.
   const def = (await client.get("/api/races")).json.find((r: any) => r.isDefault);
   await client.post(`/api/races/${def.id}/leave`);
 

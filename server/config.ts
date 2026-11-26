@@ -22,8 +22,13 @@ export const config = {
   secureCookies: appUrl.startsWith("https://"),
   // Set when running behind a reverse proxy (Fly, Render, nginx...) so client IPs come from X-Forwarded-For.
   trustProxy: env("TRUST_PROXY", "false") === "true",
+  // The welcome race every new racer joins. Only used when the database has none yet;
+  // an existing welcome race is changed through a migration in db.ts.
   defaultRace: {
-    name: env("DEFAULT_RACE_NAME", "The Grand Sky Rally") as string,
+    name: env("DEFAULT_RACE_NAME", "Drrrrrrrrastic Decemberrrrrrr") as string,
+    startDate: env("DEFAULT_RACE_START", "2026-12-01") as string,
+    // Last day, inclusive. Set to "none" for an open-ended race.
+    endDate: ((v) => (v === "none" ? null : v))(env("DEFAULT_RACE_END", "2026-12-25") as string),
   },
   mail: {
     smtpHost: env("SMTP_HOST"),
