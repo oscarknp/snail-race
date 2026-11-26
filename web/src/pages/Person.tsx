@@ -6,6 +6,7 @@ import { api, type PublicUser, type Race, type Standing } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
 import { dist, formatDate, ordinal, pct } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { PoweredByStrava } from "../components/StravaBrand.tsx";
 
 interface PersonData {
   user: PublicUser;
@@ -56,6 +57,7 @@ export function Person() {
             </li>
           ))}
         </ul>
+        {data.races.some((r) => r.standing?.fromStrava) && <PoweredByStrava />}
       </section>
     </main>
   );

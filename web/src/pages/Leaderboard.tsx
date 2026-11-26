@@ -5,6 +5,7 @@ import { api, type Race, type RaceDetail } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
 import { dist, formatDate, pct } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { PoweredByStrava } from "../components/StravaBrand.tsx";
 
 export function Leaderboard() {
   const me = useMe();
@@ -85,6 +86,7 @@ export function Leaderboard() {
                 ))}
               </tbody>
             </table>
+            {rows.some((x) => x.fromStrava) && <PoweredByStrava />}
           </div>
         )}
       </section>

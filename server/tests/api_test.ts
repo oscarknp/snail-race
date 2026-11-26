@@ -146,6 +146,7 @@ Deno.test("points: 1/4/3/12 points per km; the race is ranked by share of each r
   assertEquals(byName.Sam.progress, 0.04);
   assertEquals(byName.Cyril.goalPoints, 900);
   assertEquals(byName.Cyril.remainingPoints, 810);
+  assertEquals(byName.Cyril.fromStrava, false, "manual-only standings don't credit Strava");
 
   const list = await runner.client.get("/api/activities");
   assertEquals(list.json.totalPoints, 180);

@@ -151,10 +151,17 @@ Sky Race handles this as follows:
 
 - Connecting requires an explicit opt-in: *"my Strava distance totals are shown to people in my races."* Users can withdraw it at any time, and their Strava distance then stops counting.
 - Other people only ever see **aggregate totals**. Individual Strava activities (names, dates, times) are visible only to their owner.
-- The UI shows "Powered by Strava" and links each imported activity to "View on Strava".
+- Branding follows Strava's [brand guidelines](https://developers.strava.com/guidelines/), using the official, unmodified
+  files in [web/public/strava](web/public/strava) via [StravaBrand.tsx](web/src/components/StravaBrand.tsx):
+  - the official **Connect with Strava** button starts the OAuth flow (also used for *Reconnect*);
+  - the official **Powered by Strava** logo appears wherever Strava data is shown: the Strava settings, the activity
+    list and dashboard when imported activities are listed, and race standings, leaderboards and profile pages
+    whenever a total includes Strava-imported distance (`fromStrava` on each standing);
+  - the official **Compatible with Strava** logo sits in the site footer;
+  - logos switch between Strava's own orange (day) and white (night) versions, never recoloured or animated;
+  - each imported activity links to its original with bold, Strava-orange **View on Strava** text.
 
-Read the current agreement and brand guidelines yourself, and confirm with Strava if a leaderboard of totals suits your use, before launching publicly. Swap the text buttons for Strava's official
-"Connect with Strava" and "Powered by Strava" assets from their [brand guidelines](https://developers.strava.com/guidelines/).
+Read the current agreement and brand guidelines yourself, and confirm with Strava if a leaderboard of totals suits your use, before launching publicly. If Strava updates its assets, download fresh copies into `web/public/strava` without editing them.
 
 ## Security notes
 

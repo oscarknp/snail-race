@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth.tsx";
 import { useTheme } from "../lib/theme.tsx";
+import { CompatibleWithStrava } from "./StravaBrand.tsx";
 
 const LINKS = [
   { to: "/", label: "Sky Race", end: true },
@@ -75,7 +76,7 @@ export function Layout() {
         <Outlet />
       </div>
       <footer className="footer">
-        ✈️ Blue skies and tailwinds. · <span className="powered-strava">Compatible with Strava</span>
+        ✈️ Blue skies and tailwinds. · <span className="compatible"><CompatibleWithStrava /></span>
       </footer>
     </>
   );

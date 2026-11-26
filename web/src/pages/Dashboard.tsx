@@ -8,6 +8,7 @@ import { type Activity, api, type Me, type Race, type Standing } from "../lib/ap
 import { useMe } from "../lib/auth.tsx";
 import { dist, ordinal, pct } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { PoweredByStrava } from "../components/StravaBrand.tsx";
 
 interface DashboardData {
   me: Me;
@@ -141,6 +142,7 @@ export function Dashboard() {
               </>
             )
             : <p className="muted">You're not in this race. <Link to="/">Join from the race page</Link>.</p>}
+          {(s?.fromStrava || leader?.fromStrava) && <PoweredByStrava />}
         </section>
       </div>
 
@@ -157,6 +159,7 @@ export function Dashboard() {
             </Empty>
           )
           : <ul className="list">{data.recent.map((a) => <li key={a.id}><ActivityRow activity={a} unit={me.unit} compact /></li>)}</ul>}
+        {data.recent.some((a) => a.source === "strava") && <PoweredByStrava />}
       </section>
       <LogButton floating />
     </main>

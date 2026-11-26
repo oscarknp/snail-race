@@ -9,6 +9,7 @@ import { api, ApiError, notifyDataChanged, type Race, type RaceDetail } from "..
 import { useMe } from "../lib/auth.tsx";
 import { formatDate, pct } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { PoweredByStrava } from "../components/StravaBrand.tsx";
 
 export function RacePage() {
   const me = useMe();
@@ -126,6 +127,7 @@ export function RacePage() {
 
         <RaceTrack race={race} standings={standings} meId={me.id} unit={me.unit} />
         <StandingsList standings={standings} meId={me.id} unit={me.unit} />
+        {standings.some((x) => x.fromStrava) && <div style={{ padding: "0 20px" }}><PoweredByStrava /></div>}
 
         <div className="row" style={{ padding: "0 20px 20px" }}>
           <Link to={`/leaderboard?race=${race.id}`} className="btn btn-secondary btn-sm">Full leaderboard</Link>

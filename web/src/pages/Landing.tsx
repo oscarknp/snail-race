@@ -39,6 +39,7 @@ function demoStandings(bonus: number): Standing[] {
       remainingPoints: (1 - share) * goal,
       distanceM: 0,
       bySport: [],
+      fromStrava: false,
       finishedOn: null,
       activityCount: 3,
       lastActivityOn: null,

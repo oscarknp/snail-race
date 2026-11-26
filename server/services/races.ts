@@ -54,6 +54,8 @@ export interface Standing {
   /** Counted distance across all of the racer's sports. */
   distanceM: number;
   bySport: SportTotal[];
+  /** True when any counted activity was imported from Strava (the UI credits Strava then). */
+  fromStrava: boolean;
   finishedOn: string | null;
   activityCount: number;
   lastActivityOn: string | null;
@@ -106,6 +108,7 @@ export function raceStandings(race: RaceRow): Standing[] {
       remainingPoints: goal ? Math.max(0, goal - points) : null,
       distanceM,
       bySport: [...bySport.values()],
+      fromStrava: counted.some((a) => a.source === "strava"),
       finishedOn,
       activityCount: counted.length,
       lastActivityOn: counted.at(-1)?.date ?? null,

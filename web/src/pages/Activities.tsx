@@ -8,6 +8,7 @@ import { type Activity, api, ApiError, notifyDataChanged } from "../lib/api.ts";
 import { useMe } from "../lib/auth.tsx";
 import { dist, formatDate } from "../lib/format.ts";
 import { useLoad } from "../lib/hooks.ts";
+import { PoweredByStrava } from "../components/StravaBrand.tsx";
 
 type Filter = "all" | "manual" | "strava" | "excluded";
 
@@ -60,7 +61,7 @@ export function Activities() {
           {list.map((a) => <li key={a.id}><ActivityRow activity={a} unit={me.unit} /></li>)}
         </ul>
       </section>
-      {hasStrava && <p className="powered-strava" style={{ textAlign: "right", marginTop: 8 }}>Powered by Strava</p>}
+      {hasStrava && <PoweredByStrava />}
     </main>
   );
 }

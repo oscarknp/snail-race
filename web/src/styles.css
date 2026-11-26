@@ -231,8 +231,6 @@ main.page { padding: 24px 0 96px; }
 .btn-danger:hover:not(:disabled) { background: #8f1c13; color: #fff; }
 .btn-sm { padding: 7px 12px; min-height: 34px; font-size: 0.87rem; }
 .btn-block { width: 100%; }
-.btn-strava { background: var(--strava); color: #fff; font-weight: 800; box-shadow: 0 3px 0 #b33a00; }
-.btn-strava:hover:not(:disabled) { background: #e04800; color: #fff; }
 .fab {
   position: fixed; right: 20px; bottom: 20px; z-index: 30; box-shadow: var(--shadow-lg), 0 3px 0 var(--accent-shadow); padding: 16px 22px; font-size: 1.05rem;
 }
@@ -421,7 +419,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 .racer-card { display: flex; gap: 18px; align-items: center; }
 .racer-card svg { flex: none; }
 .photo-edit { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.powered-strava { font-size: 0.8rem; font-weight: 800; color: var(--strava); letter-spacing: 0.02em; }
 .log-table td, .log-table th { font-size: 0.85rem; padding: 8px; }
 .camera-frame { position: relative; aspect-ratio: 1; width: 100%; border-radius: 18px; overflow: hidden; background: var(--navy); }
 .camera-frame video, .camera-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -430,3 +427,18 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 .camera-guide { position: absolute; inset: 8%; border-radius: 50%; border: 3px dashed rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 999px rgba(13, 43, 76, 0.35); pointer-events: none; }
 hr.sep { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
 .footer { text-align: center; color: var(--ink-faint); font-size: 0.85rem; padding: 24px 16px 40px; }
+
+/* ---------- Strava brand assets (official files, shown unmodified) ---------- */
+:root[data-theme="dark"] .theme-light-only { display: none; }
+:root:not([data-theme="dark"]) .theme-dark-only { display: none; }
+.strava-connect-wrap { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.strava-connect { border: 0; padding: 0; background: none; cursor: pointer; line-height: 0; border-radius: 4px; }
+.strava-connect:disabled { cursor: progress; }
+.strava-connect img { display: block; height: 48px; width: auto; }
+.strava-credit { display: flex; margin-top: 12px; }
+.strava-credit.end { justify-content: flex-end; }
+.strava-credit.start { justify-content: flex-start; }
+.card-head .strava-credit { margin-top: 0; }
+.strava-credit img { display: block; height: 16px; width: auto; }
+.footer .compatible { display: inline-flex; vertical-align: middle; }
+.footer .compatible img { height: 14px; width: auto; }

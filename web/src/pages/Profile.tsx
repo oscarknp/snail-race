@@ -4,6 +4,7 @@ import { goalPoints, OTHER_SPORT, SPORTS, sportLabel } from "../../../shared/spo
 import type { Unit } from "../../../shared/units.ts";
 import { CameraDialog, canUseLiveCamera } from "../components/CameraCapture.tsx";
 import { RacerPortrait } from "../components/Racer.tsx";
+import { PoweredByStrava, StravaConnectButton } from "../components/StravaBrand.tsx";
 import { SportPicker, sportsError } from "./Auth.tsx";
 import { ConfirmDialog, ErrorBox, Field, Loading, useToast } from "../components/ui.tsx";
 import { api, ApiError, type Me, notifyDataChanged } from "../lib/api.ts";
@@ -263,6 +264,7 @@ function TrackingSettings() {
   const [params, setParams] = useSearchParams();
   const { data, error, reload, setData } = useLoad(() => api<StravaDetails>("/integrations/strava"), []);
   const [consent, setConsent] = useState(false);
+  const [consentError, setConsentError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [deleteImported, setDeleteImported] = useState(true);
@@ -330,7 +332,7 @@ function TrackingSettings() {
     <section className="card" id="tracking">
       <div className="card-head">
         <h2>Activity tracking integrations</h2>
-        <span className="powered-strava">Powered by Strava</span>
+        <PoweredByStrava />
       </div>
 
       <div className="field" style={{ marginBottom: 20 }}>
@@ -383,10 +385,11 @@ function TrackingSettings() {
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>I agree that my Strava distance <em>totals</em> are shown to people in my races. Individual Strava activities stay private to me.</span>
           </label>
+          {consentError && !consent && (
+            <div className="form-error" role="alert">Please tick the box above first: race totals can only include Strava data if you agree.</div>
+          )}
           <div>
-            <button className="btn btn-strava" disabled={!consent || busy === "connect"} onClick={connect}>
-              {busy === "connect" ? "Opening Strava…" : "Connect with Strava"}
-            </button>
+            <StravaConnectButton busy={busy === "connect"} onClick={() => (consent ? connect() : setConsentError(true))} />
           </div>
         </div>
       )}
@@ -407,15 +410,20 @@ function TrackingSettings() {
               </div>
             </div>
             <div className="row">
-              {conn.status === "needs_reauth"
-                ? <button className="btn btn-strava btn-sm" onClick={connect} disabled={busy === "connect"}>Reconnect Strava</button>
-                : <button className="btn btn-secondary btn-sm" onClick={syncNow} disabled={busy === "sync"}>{busy === "sync" ? "Syncing…" : "↻ Sync now"}</button>}
+              {conn.status !== "needs_reauth" && (
+                <button className="btn btn-secondary btn-sm" onClick={syncNow} disabled={busy === "sync"}>{busy === "sync" ? "Syncing…" : "↻ Sync now"}</button>
+              )}
               <button className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(true)}>Disconnect</button>
             </div>
           </div>
 
           {conn.lastError && (
             <div className="notice danger" role="alert"><span aria-hidden="true">⚠️</span><div>{conn.lastError}</div></div>
+          )}
+          {conn.status === "needs_reauth" && (
+            <div>
+              <StravaConnectButton busy={busy === "connect"} onClick={connect} />
+            </div>
           )}
           {(conn.rateLimitedUntil || data.appRateLimitedUntil) && (
             <div className="notice"><span aria-hidden="true">⏳</span><div>Strava asked us to slow down. Syncing resumes automatically after {formatDateTime(conn.rateLimitedUntil ?? new Date(data.appRateLimitedUntil! * 1000).toISOString())}.</div></div>

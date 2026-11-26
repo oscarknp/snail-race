@@ -344,6 +344,7 @@ Deno.test("race dates: Strava activities only count inside the event period (inc
   const standing = (await client.get(`/api/races/${race.json.id}`)).json.standings[0];
   assertEquals(standing.distanceM, 22000, "only the runs on the first and last day count");
   assertEquals(standing.points, 88, "22 km of running at 4 points per km");
+  assertEquals(standing.fromStrava, true, "the UI credits Strava for this standing");
 
   const list = await client.get("/api/activities");
   const byName = Object.fromEntries(list.json.activities.map((a: any) => [a.name, a]));

@@ -91,6 +91,8 @@ export interface Standing {
   /** Counted distance across all of their sports. */
   distanceM: number;
   bySport: { sport: Sport; distanceM: number; points: number }[];
+  /** Some of this racer's counted distance was imported from Strava. */
+  fromStrava: boolean;
   finishedOn: string | null;
   activityCount: number;
   lastActivityOn: string | null;
