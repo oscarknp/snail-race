@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { GOAL_POINTS, goalPoints, MAX_SPORTS, SPORTS } from "../../../shared/sports.ts";
+import { GOAL_POINTS, goalPoints, isSoloSport, MAX_SPORTS, SPORTS } from "../../../shared/sports.ts";
 import { api, ApiError, type Me } from "../lib/api.ts";
 import { useAuth } from "../lib/auth.tsx";
 import { Field } from "../components/ui.tsx";
@@ -207,39 +207,64 @@ export function sportsError(errors: Record<string, string>): string | undefined 
   return Object.entries(errors).find(([k]) => k === "sports" || k.startsWith("sports."))?.[1];
 }
 
-/** Pick 1-3 race sports. Each shows its points per km; the goal depends on how many are picked. */
+/**
+ * Pick 1-3 race sports, or a solo sport (walking) on its own. Each shows its points per km;
+ * the goal depends on the choice. Picking a solo sport replaces the others, and vice versa.
+ */
 export function SportPicker({ value, onChange, error }: { value: string[]; onChange: (sports: string[]) => void; error?: string }) {
   const goal = goalPoints(value);
-  const full = value.length >= MAX_SPORTS;
+  const solo = value.some(isSoloSport);
+  const full = !solo && value.length >= MAX_SPORTS;
+  const combinable = SPORTS.filter((s) => s.soloGoal === null);
+  const soloSports = SPORTS.filter((s) => s.soloGoal !== null);
+
+  function pick(id: string) {
+    const on = value.includes(id);
+    if (on) return onChange(value.filter((x) => x !== id));
+    if (isSoloSport(id) || solo) return onChange([id]);
+    onChange([...value, id]);
+  }
+
+  const option = (s: (typeof SPORTS)[number]) => {
+    const on = value.includes(s.id);
+    return (
+      <button
+        key={s.id}
+        type="button"
+        aria-pressed={on}
+        disabled={!on && full && s.soloGoal === null}
+        className={`option-card sport-option${s.soloGoal !== null ? " solo" : ""}`}
+        onClick={() => pick(s.id)}
+      >
+        <span className="sport-emoji" aria-hidden="true">{s.emoji}</span>
+        <strong>{s.label}</strong>
+        <span>
+          {s.pointsPerKm} {s.pointsPerKm === 1 ? "point" : "points"} per km
+          {s.soloGoal !== null && ` · on its own, goal ${s.soloGoal} points`}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <div className="field">
-      <span className="label" id="sport-picker-label">Your race sports (pick 1 to {MAX_SPORTS})</span>
+      <span className="label" id="sport-picker-label">Your race sports (pick 1 to {MAX_SPORTS}, or walking on its own)</span>
       <div className="sport-picker" role="group" aria-labelledby="sport-picker-label">
-        {SPORTS.map((s) => {
-          const on = value.includes(s.id);
-          return (
-            <button
-              key={s.id}
-              type="button"
-              aria-pressed={on}
-              disabled={!on && full}
-              className="option-card sport-option"
-              onClick={() => onChange(on ? value.filter((x) => x !== s.id) : [...value, s.id])}
-            >
-              <span className="sport-emoji" aria-hidden="true">{s.emoji}</span>
-              <strong>{s.label}</strong>
-              <span>{s.pointsPerKm} {s.pointsPerKm === 1 ? "point" : "points"} per km</span>
-            </button>
-          );
-        })}
+        {combinable.map(option)}
+        {soloSports.map(option)}
       </div>
       {error
         ? <span className="error" role="alert">{error}</span>
         : (
           <span className="hint">
             {goal
-              ? <>Your goal: <strong>{goal.toLocaleString()} points</strong>{full ? ` (that's the maximum of ${MAX_SPORTS} sports)` : ""}</>
-              : `Goal: ${GOAL_POINTS[1]} points with 1 sport, ${GOAL_POINTS[2]} with 2, ${GOAL_POINTS[3]} with 3.`}
+              ? (
+                <>
+                  Your goal: <strong>{goal.toLocaleString()} points</strong>
+                  {solo ? " (walking can't be combined with other sports)" : full ? ` (that's the maximum of ${MAX_SPORTS} sports)` : ""}
+                </>
+              )
+              : `Goal: ${GOAL_POINTS[1]} points with 1 sport, ${GOAL_POINTS[2]} with 2, ${GOAL_POINTS[3]} with 3. Walking (solo): ${soloSports[0]?.soloGoal} points.`}
           </span>
         )}
     </div>

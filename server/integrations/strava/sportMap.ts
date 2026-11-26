@@ -18,6 +18,8 @@ export const STRAVA_SPORT_MAP: Record<string, Sport> = {
   Rowing: "rowing",
   VirtualRow: "rowing",
   Swim: "swimming",
+  Walk: "walking",
+  Hike: "walking",
 };
 
 export function defaultCategory(stravaType: string): string {

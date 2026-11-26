@@ -2,7 +2,7 @@
 
 A full-stack fitness tracker that turns everyday exercise into a friendly air race. Every racer flies a cartoon
 propeller plane in their own colour; upload a profile photo and it becomes a pilot badge instead. Pick up to three
-sports, log distance by hand or sync it from Strava, earn points for every kilometre, and fly along a route across the
+sports (or walking on its own), log distance by hand or sync it from Strava, earn points for every kilometre, and fly along a route across the
 sky from the takeoff runway toward your points goal.
 
 | Sport | Points per km | km for 900 points |
@@ -11,12 +11,16 @@ sky from the takeoff runway toward your points goal.
 | 🚣 Rowing | 3 | 300 km |
 | 🏃 Running | 4 | 225 km |
 | 🏊 Swimming | 12 | 75 km |
+| 🚶 Walking (solo) | 2 | 250 km for its 500-point goal |
 
 | Sports you race in | Points goal |
 |---|---|
 | 1 | 900 |
 | 2 | 1,050 |
 | 3 (maximum) | 1,200 |
+| Walking, on its own | 500 |
+
+Walking can't be combined with other sports: picking it replaces any others, and the server refuses combinations.
 
 Because goals differ, the track shows each racer's **percentage of their own goal**: 90 km of cycling (90 points) and
 30 km of rowing (90 points) are both 10% for single-sport racers, so they stand side by side. A three-sport racer
@@ -127,8 +131,8 @@ Strava allows one subscription per application. Without webhooks the app still w
 ### Sports and counting rules
 
 The four sports, their points per km and the goals live in [shared/sports.ts](shared/sports.ts). Strava `sport_type` values (falling back to the legacy `type`) map to them in
-[server/integrations/strava/sportMap.ts](server/integrations/strava/sportMap.ts): `Run`, `TrailRun` and `VirtualRun` count as Running; `Ride`, `GravelRide`, `MountainBikeRide`, `VirtualRide` and e-bike types as Cycling; `Rowing` and `VirtualRow` as Rowing; `Swim` as Swimming.
-Any other type (walks, hikes, yoga…) is stored as *Not raced* and never counts. Users can remap any type, and already-imported activities are re-categorised immediately.
+[server/integrations/strava/sportMap.ts](server/integrations/strava/sportMap.ts): `Run`, `TrailRun` and `VirtualRun` count as Running; `Ride`, `GravelRide`, `MountainBikeRide`, `VirtualRide` and e-bike types as Cycling; `Rowing` and `VirtualRow` as Rowing; `Swim` as Swimming; `Walk` and `Hike` as Walking.
+Any other type (yoga, kayaking, skiing…) is stored as *Not raced* and never counts. Users can remap any type, and already-imported activities are re-categorised immediately.
 
 All counting goes through [server/services/counting.ts](server/services/counting.ts). An activity counts toward a race when all of these hold:
 

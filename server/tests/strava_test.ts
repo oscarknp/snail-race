@@ -146,7 +146,7 @@ Deno.test("sync imports once, never duplicates, and only the race sport counts",
   s.activities.set(2, act(2, "Ride", 20, 0));
   s.activities.set(3, act(3, "TrailRun", 8, 0));
   s.activities.set(4, { ...act(4, "Yoga", 0, 0), distance: 0 });
-  s.activities.set(5, act(5, "Walk", 4, 0));
+  s.activities.set(5, act(5, "Kayaking", 4, 0));
   const { client, user } = await registerUser("Shelly", "running");
   await connect(client);
 
@@ -164,13 +164,13 @@ Deno.test("sync imports once, never duplicates, and only the race sport counts",
   assertEquals(ride.sport, "cycling");
   assertEquals(ride.excludedReason, "other_sport");
   assert(ride.externalUrl.endsWith("/activities/2"));
-  assertEquals(list.json.activities.find((a: any) => a.sourceSportType === "Walk").sport, "other");
+  assertEquals(list.json.activities.find((a: any) => a.sourceSportType === "Kayaking").sport, "other");
 
-  // Remap Walk into running: it now counts too. Unmapping TrailRun makes it stop counting.
-  await client.put("/api/integrations/strava/mapping", { sourceType: "Walk", category: "running" });
+  // Remap Kayaking into running: it now counts too. Unmapping TrailRun makes it stop counting.
+  await client.put("/api/integrations/strava/mapping", { sourceType: "Kayaking", category: "running" });
   await client.put("/api/integrations/strava/mapping", { sourceType: "TrailRun", category: "other" });
   assertEquals((await client.get("/api/activities")).json.totalM, 9000);
-  assertEquals((await client.put("/api/integrations/strava/mapping", { sourceType: "Walk", category: "hiking" })).status, 400);
+  assertEquals((await client.put("/api/integrations/strava/mapping", { sourceType: "Kayaking", category: "hiking" })).status, 400);
 
   // Imported activities can't be edited or deleted locally.
   const imported = list.json.activities.find((a: any) => a.source === "strava");
@@ -359,4 +359,17 @@ Deno.test("race dates: Strava activities only count inside the event period (inc
   const early = await client.post("/api/activities", { sport: "running", date: dayBefore, distance: 5 });
   assertEquals(early.json.excludedReason, "outside_races");
   assertEquals((await client.get(`/api/races/${race.json.id}`)).json.standings[0].distanceM, 22000);
+});
+
+Deno.test("Strava walks and hikes count as walking", async () => {
+  resetDb();
+  const { s, client: fake } = fakeStrava();
+  setStravaClient(fake);
+  s.activities.set(1, act(1, "Walk", 6, 0));
+  s.activities.set(2, act(2, "Hike", 9, 0));
+  s.activities.set(3, act(3, "Run", 5, 0));
+  const { client } = await registerUser("Wanda", "walking");
+  await connect(client);
+  const list = await client.get("/api/activities");
+  assertEquals(list.json.totalPoints, 30, "(6 + 9) km x 2 points; the run isn't her sport");
 });

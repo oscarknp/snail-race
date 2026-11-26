@@ -280,6 +280,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .option-card span { color: var(--ink-soft); font-size: 0.87rem; }
 .sport-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .sport-option { text-align: center; padding: 12px 8px; }
+.sport-option.solo { grid-column: 1 / -1; }
 .sport-option .sport-emoji { display: block; font-size: 1.8rem; line-height: 1.2; color: inherit; }
 .option-card.sport-option[aria-pressed="true"], .option-card[aria-checked="true"] { border-color: var(--navy); background: var(--sky-soft); box-shadow: inset 0 0 0 1px var(--navy); }
 .option-card:disabled { opacity: 0.55; cursor: not-allowed; }

@@ -39,7 +39,7 @@ Deno.test("duplicate email and weak password are rejected with field errors", as
   const weak = await c.post("/api/auth/register", { name: "G3", email: "g3@example.com", password: "short", sports: ["running"] });
   assertEquals(weak.status, 400);
   assert(weak.json.fields.password);
-  for (const sports of [[], ["walking"], ["running", "running"], ["running", "cycling", "rowing", "swimming"]]) {
+  for (const sports of [[], ["hiking"], ["running", "running"], ["running", "cycling", "rowing", "swimming"], ["walking", "running"]]) {
     const r = await c.post("/api/auth/register", { name: "G4", email: "g4@example.com", password: "long-enough", sports });
     assertEquals(r.status, 400, JSON.stringify(sports));
     assert(Object.keys(r.json.fields).some((k) => k.startsWith("sports")), JSON.stringify(r.json));
@@ -271,4 +271,24 @@ Deno.test("encryption: secrets round-trip with the configured key", async () => 
   const { encryptSecret, decryptSecret } = await import("../lib/crypto.ts");
   // The test setup uses a base64 key; round-trip with it.
   assertEquals(decryptSecret(encryptSecret("strava-token")), "strava-token");
+});
+
+Deno.test("walking: 2 points per km, goal 500, and only on its own", async () => {
+  resetDb();
+  const walker = await registerUser("Walt", "walking");
+  assertEquals(walker.user.goalPoints, 500);
+  const walk = await walker.client.post("/api/activities", { sport: "walking", date: today(), distance: 125 });
+  assertEquals(walk.json.points, 250);
+  const me = (await walker.client.get("/api/dashboard")).json.myStanding;
+  assertEquals(me.points, 250);
+  assertEquals(me.progress, 0.5, "125 km of 250 km");
+
+  // Can't be combined, either way round.
+  const combo = await walker.client.patch("/api/me", { sports: ["walking", "cycling"] });
+  assertEquals(combo.status, 400);
+  assert(JSON.stringify(combo.json).includes("can't be combined"));
+  const runner = await registerUser("Rae", ["running", "cycling"]);
+  assertEquals((await runner.client.patch("/api/me", { sports: ["running", "walking"] })).status, 400);
+  // Switching to walking alone is fine.
+  assertEquals((await runner.client.patch("/api/me", { sports: ["walking"] })).json.goalPoints, 500);
 });

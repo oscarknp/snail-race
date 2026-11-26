@@ -188,6 +188,16 @@ const MIGRATIONS: string[] = [
     description = 'The everyone-welcome air race. Every pilot takes off here.'
   WHERE is_default = 1 AND name = 'The Great Garden Grand Prix';
   `,
+  // v5: walking became a race sport. Re-categorise imported walks and hikes, unless the
+  // user chose their own mapping for that Strava type.
+  `
+  UPDATE activities SET sport = 'walking'
+  WHERE source = 'strava' AND sport = 'other' AND source_sport_type IN ('Walk', 'Hike')
+    AND NOT EXISTS (
+      SELECT 1 FROM user_sport_mapping m
+      WHERE m.user_id = activities.user_id AND m.provider = 'strava' AND m.source_type = activities.source_sport_type
+    );
+  `,
 ];
 
 let db: DatabaseSync | null = null;

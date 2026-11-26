@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { MAX_SPORTS, SPORT_IDS } from "../../shared/sports.ts";
+import { MAX_SPORTS, SPORT_IDS, sportsProblem } from "../../shared/sports.ts";
 import { config } from "../config.ts";
 import { all, one, run } from "../db.ts";
 import { randomToken } from "../lib/crypto.ts";
@@ -8,12 +8,16 @@ import { type AppEnv, currentUser, HttpError, idParam, jsonBody, parse, requireA
 import { publicUser, type RaceRow, type UserRow } from "../lib/types.ts";
 import { canViewRace, raceStandings, raceSummary } from "../services/races.ts";
 
-/** 1-3 different race sports. The points goal follows from how many are chosen. */
+/** 1-3 different race sports (or walking on its own). The points goal follows from the choice. */
 export const sportsInput = z
   .array(z.enum(SPORT_IDS, { errorMap: () => ({ message: "Choose from cycling, running, rowing and swimming" }) }))
   .min(1, "Pick at least one sport")
   .max(MAX_SPORTS, `You can take part in up to ${MAX_SPORTS} sports`)
-  .refine((list) => new Set(list).size === list.length, "Pick each sport only once");
+  .refine((list) => new Set(list).size === list.length, "Pick each sport only once")
+  .superRefine((list, ctx) => {
+    const problem = sportsProblem(list);
+    if (problem) ctx.addIssue({ code: "custom", message: problem });
+  });
 
 export function meResponse(u: UserRow) {
   return {

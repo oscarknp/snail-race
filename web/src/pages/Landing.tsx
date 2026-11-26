@@ -78,7 +78,7 @@ export function Landing() {
         </div>
         <div className="card feature">
           <span className="icon" aria-hidden="true">📏</span>
-          <div><h3>Four sports, one track</h3><p className="muted">Earn points per km: cycling 1, rowing 3, running 4, swimming 12. Race in up to 3 sports to 900, 1050 or 1200 points. Log by hand or sync from Strava.</p></div>
+          <div><h3>Five sports, one sky</h3><p className="muted">Earn points per km: cycling 1, walking 2, rowing 3, running 4, swimming 12. Race in up to 3 sports to 900, 1050 or 1200 points, or walk on your own to 500. Log by hand or sync from Strava.</p></div>
         </div>
         <div className="card feature">
           <span className="icon" aria-hidden="true">🏁</span>

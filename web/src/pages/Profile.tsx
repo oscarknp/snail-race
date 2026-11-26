@@ -189,7 +189,7 @@ function RacerCard() {
               <div className="input" aria-readonly="true" style={{ background: "var(--cloud)", display: "flex", alignItems: "center" }}>
                 {sports.length ? `${goalPoints(sports)!.toLocaleString()} points` : "Pick a sport"}
               </div>
-              <span className="hint">Set by the number of sports you take part in</span>
+              <span className="hint">Set by your sports: 900 / 1,050 / 1,200 for 1–3 sports, 500 for walking</span>
             </div>
             <Field label="Preferred unit" id="p-unit">
               <select id="p-unit" className="input" value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>

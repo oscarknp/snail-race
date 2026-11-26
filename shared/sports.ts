@@ -1,10 +1,12 @@
-// The four race sports and the points system. Every kilometre earns points at its sport's
-// rate, chosen so each sport's reference distance is worth the same 900 points.
+// The race sports and the points system. Every kilometre earns points at its sport's rate.
+// The four combinable sports are worth 900 points over their reference distance. A "solo"
+// sport can't be combined with others and has its own fixed goal.
 export const SPORTS = [
-  { id: "cycling", label: "Cycling", emoji: "🚴", pointsPerKm: 1, targetKm: 900 },
-  { id: "running", label: "Running", emoji: "🏃", pointsPerKm: 4, targetKm: 225 },
-  { id: "rowing", label: "Rowing", emoji: "🚣", pointsPerKm: 3, targetKm: 300 },
-  { id: "swimming", label: "Swimming", emoji: "🏊", pointsPerKm: 12, targetKm: 75 },
+  { id: "cycling", label: "Cycling", emoji: "🚴", pointsPerKm: 1, targetKm: 900, soloGoal: null },
+  { id: "running", label: "Running", emoji: "🏃", pointsPerKm: 4, targetKm: 225, soloGoal: null },
+  { id: "rowing", label: "Rowing", emoji: "🚣", pointsPerKm: 3, targetKm: 300, soloGoal: null },
+  { id: "swimming", label: "Swimming", emoji: "🏊", pointsPerKm: 12, targetKm: 75, soloGoal: null },
+  { id: "walking", label: "Walking", emoji: "🚶", pointsPerKm: 2, targetKm: 250, soloGoal: 500 },
 ] as const;
 
 export type Sport = (typeof SPORTS)[number]["id"];
@@ -14,8 +16,21 @@ export const SPORT_IDS = SPORTS.map((s) => s.id) as [Sport, ...Sport[]];
 /** A racer can take part in up to this many sports at once. */
 export const MAX_SPORTS = 3;
 
-/** Points needed to finish, by how many sports a racer takes part in. */
+/** Points needed to finish, by how many (combinable) sports a racer takes part in. */
 export const GOAL_POINTS: Record<number, number> = { 1: 900, 2: 1050, 3: 1200 };
+
+/** True for sports that must be chosen on their own (walking). */
+export function isSoloSport(id: string | null | undefined): boolean {
+  return SPORTS.some((s) => s.id === id && s.soloGoal !== null);
+}
+
+/** Why a set of sports isn't allowed, or null when it's fine. */
+export function sportsProblem(sports: readonly string[]): string | null {
+  const solo = sports.find(isSoloSport);
+  if (solo && sports.length > 1) return `${sportLabel(solo)} can't be combined with other sports`;
+  if (sports.length > MAX_SPORTS) return `You can take part in up to ${MAX_SPORTS} sports`;
+  return null;
+}
 
 /** Imported activities whose type isn't one of the race sports are stored as "other" and never count. */
 export const OTHER_SPORT = "other";
@@ -43,8 +58,11 @@ export function pointsFor(sport: string | null | undefined, meters: number): num
 
 /** Points needed to finish for a set of sports, or null when none is chosen. */
 export function goalPoints(sports: readonly string[]): number | null {
-  const n = sports.filter(isSport).length;
-  return n ? GOAL_POINTS[Math.min(n, MAX_SPORTS)] : null;
+  const list = sports.filter(isSport);
+  // A solo sport sets its own goal (validation keeps it from being combined).
+  const solo = SPORTS.find((s) => s.soloGoal !== null && list.includes(s.id));
+  if (solo) return solo.soloGoal;
+  return list.length ? GOAL_POINTS[Math.min(list.length, MAX_SPORTS)] : null;
 }
 
 /** Sports are stored as a comma-separated list on the user row, in the order chosen. */
